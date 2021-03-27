@@ -236,7 +236,7 @@ namespace BoughtItems.UI_Merge.ViewModel
                 writer.RenderBeginTag(HtmlTextWriterTag.Thead);
 
                 writer.RenderBeginTag(HtmlTextWriterTag.Tr);
-                writer.WriteLine("<th width=\"20\">No</th>");
+                writer.WriteLine("<th width=\"40\">No</th>");
                 writer.WriteLine("<th width=\"150\">Image</th>");
                 writer.WriteLine("<th>Item</th>");
                 writer.WriteLine("<th width=\"70\">Price</th>");
@@ -503,6 +503,10 @@ namespace BoughtItems.UI_Merge.ViewModel
             {
                 log.Error("Worker is cancelled");
             }
+            else
+            {
+                log.Info("Worker is completed. Number of orders: " + ListOrders.Count);
+            }
         }
 
         private void WorkerMerge_DoWork(object sender, DoWorkEventArgs e)
@@ -524,7 +528,7 @@ namespace BoughtItems.UI_Merge.ViewModel
                     catch (Exception e1)
                     {
                         log.Error("Cannot load data from file: " + files[i], e1);
-                    }                  
+                    }
                 }
             }
         }

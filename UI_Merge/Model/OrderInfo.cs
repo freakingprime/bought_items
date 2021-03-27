@@ -27,16 +27,16 @@ namespace BoughtItems.UI_Merge.Model
         public string ShopURL = string.Empty;
 
         public List<ItemInfo> ListItems = new List<ItemInfo>(10);
+        #endregion
 
         public int CompareTo(OrderInfo other)
         {
-            if (this.UserName.Equals(other.UserName))
-            {
-                return this.ID.CompareTo(other.ID);
-            }
-            return this.UserName.CompareTo(other.UserName);
+            //if (this.UserName.Equals(other.UserName))
+            //{
+            //    return this.ID.CompareTo(other.ID);
+            //}
+            //return this.UserName.CompareTo(other.UserName);
+            return this.ID.CompareTo(other.ID);
         }
-
-        #endregion
     }
 }
