@@ -13,7 +13,5 @@
     <Window.DataContext>
         <vm:MainWindowVm/>
     </Window.DataContext>
-    <Grid>
-        <merge:MergeView/>
-    </Grid>
+    <merge:MergeView/>
 </Window>

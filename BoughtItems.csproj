@@ -49,6 +49,9 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationIcon>PngItem_771090.ico</ApplicationIcon>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="HtmlAgilityPack, Version=1.11.31.0, Culture=neutral, PublicKeyToken=bd319b19eaf3b43a, processorArchitecture=MSIL">
       <HintPath>packages\HtmlAgilityPack.1.11.31\lib\Net45\HtmlAgilityPack.dll</HintPath>
@@ -92,6 +95,7 @@
     <Compile Include="UI_Template\View\TemplateView.xaml.cs">
       <DependentUpon>TemplateView.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Utils.cs" />
     <Page Include="MainWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
@@ -170,9 +174,15 @@
     <Folder Include="UI_MainWindow\View\" />
     <Folder Include="UI_Template\Model\" />
   </ItemGroup>
+  <ItemGroup>
+    <Resource Include="PngItem_771090.ico" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PreBuildEvent>set mydate=%25date:~12,4%25%25date:~7,2%25%25date:~4,2%25
 echo %25mydate%25 &gt; "$(ProjectDir)\BuildTime.txt"</PreBuildEvent>
+  </PropertyGroup>
+  <PropertyGroup>
+    <PostBuildEvent>if $(ConfigurationName) == Release xcopy "$(ProjectDir)bin\Release" "E:\SETUP\OTHERS 3\Shopee Bought\" /Y /I /E</PostBuildEvent>
   </PropertyGroup>
 </Project>

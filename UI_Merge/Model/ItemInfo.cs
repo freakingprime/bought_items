@@ -26,13 +26,6 @@ namespace BoughtItems.UI_Merge.Model
         public string ImageURL = string.Empty;
         public string LocalImageName = string.Empty;
 
-        public string ShopName = string.Empty;
-        public string ShopImageURL = string.Empty;
-        public string ShopLocalImageName = string.Empty;
-        public string ShopURL = string.Empty;
-        public string ShopID = string.Empty;
-        public string OrderURL = string.Empty;
-
         #endregion
     }
 }
