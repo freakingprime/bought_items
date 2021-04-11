@@ -275,8 +275,8 @@ namespace BoughtItems.UI_Merge.ViewModel
                         writer.RenderEndTag(); //end td
 
                         writer.WriteLine("<td>" + string.Format("{0:n0}", item.ActualPrice) + "</td>");
-                        writer.WriteLine(string.Format("<td><a href=\"{0}\">{1}</a></td>", order.OrderURL, order.ID));
-                        writer.WriteLine(string.Format("<td><a href=\"{0}\">{1}</a></td>", order.ShopURL, order.ShopName));
+                        writer.WriteLine(string.Format("<td><a href=\"{0}\" target=\"_blank\">{1}</a></td>", order.OrderURL, order.ID));
+                        writer.WriteLine(string.Format("<td><a href=\"{0}\" target=\"_blank\">{1}</a></td>", order.ShopURL, order.ShopName));
                         writer.WriteLine("<td>" + order.UserName + "</td>");
 
                         writer.RenderEndTag(); //end tr
