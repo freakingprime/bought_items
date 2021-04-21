@@ -206,6 +206,8 @@ namespace BoughtItems.UI_Merge.ViewModel
                 //Save to database file
                 if (IsUseDatabase && File.Exists(TxtDatabaseFile))
                 {
+                    string backupName = Path.Combine(Path.GetDirectoryName(TxtDatabaseFile), "Backup_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".json");
+                    File.Copy(TxtDatabaseFile, backupName);
                     File.WriteAllText(TxtDatabaseFile, JsonConvert.SerializeObject(ListOrders, Formatting.Indented));
                 }
             }
