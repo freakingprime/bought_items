@@ -84,7 +84,12 @@ namespace BoughtItems.UI_Merge.ViewModel
         private const string NONE_TEXT = "None";
         private readonly Regex regexOrderID = new Regex(@"\/order\/(\d+)\/");
         private readonly Regex regexShopID = new Regex(@"\/shop\/(\d+)");
-        private readonly Regex regexItemImageURL = new Regex(@"http[^*]+");
+
+        //<div class="shopee-image__content" style="background-image: url(https://cf.shopee.vn/file/e40478ec9ce88362d0c479fff1cf6e70_tn);"><div class="shopee-image__content--blur"> </div></div>
+        //<div class="shopee-image__content" style="background-image: /*savepage-url=https://cf.shopee.vn/file/90796d245838a4ceb821252801ea3b4c_tn*/ var(--savepage-url-14);"><div class="shopee-image__content--blur"> </div></div>
+
+        //2021.04.21: Add ) to ending character
+        private readonly Regex regexItemImageURL = new Regex(@"http[^*)]+");
 
         public const char FILENAME_SEPERATOR = '\n';
 
