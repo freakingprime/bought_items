@@ -78,7 +78,7 @@
                     <ProgressBar x:Name="TheProgresBar" Value="{Binding ProgressValue}" Margin="2"/>
                 </DockPanel>
                 <CheckBox x:Name="CheckboxUseDatabase" Content="Use database" IsChecked="{Binding IsUseDatabase}"/>
-                <StackPanel Orientation="Horizontal" IsEnabled="{Binding IsWorkerIdle}">
+                <StackPanel Orientation="Horizontal" IsEnabled="{Binding IsTaskIdle}">
                     <Button x:Name="BtnMerge" Content="Merge" Click="BtnMerge_Click"/>
                     <Button x:Name="BtnExportJSON" Content="Export to JSON" Click="BtnExportJSON_Click"/>
                     <Button x:Name="BtnExportToHTML" Content="Export to HTML and database file" Click="BtnExportToHTML_Click"/>

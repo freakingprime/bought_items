@@ -10,6 +10,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Web.UI;
 
@@ -21,14 +22,7 @@ namespace BoughtItems.UI_Merge.ViewModel
 
         public MergeVm()
         {
-            workerMerge = new BackgroundWorker();
-            workerMerge.WorkerReportsProgress = true;
-            workerMerge.WorkerSupportsCancellation = true;
-            workerMerge.DoWork += WorkerMerge_DoWork;
-            workerMerge.RunWorkerCompleted += WorkerMerge_RunWorkerCompleted;
-            workerMerge.ProgressChanged += WorkerMerge_ProgressChanged;
-
-            IsWorkerIdle = true;
+            IsTaskIdle = true;
         }
 
         #region Bind properties
@@ -67,7 +61,7 @@ namespace BoughtItems.UI_Merge.ViewModel
 
         private bool _isWorkerIdle;
 
-        public bool IsWorkerIdle
+        public bool IsTaskIdle
         {
             get { return _isWorkerIdle; }
             set { SetValue(ref _isWorkerIdle, value); }
@@ -159,20 +153,93 @@ namespace BoughtItems.UI_Merge.ViewModel
             }
         }
 
-        public void ButtonMerge()
+        #region Async function
+
+        private CancellationTokenSource cts;
+        private CancellationToken cancelToken;
+        private IProgress<int> progressObject;
+        private Task<int> taskMerge;
+
+        #endregion
+
+        public async void ButtonMerge()
         {
-            if (workerMerge.IsBusy)
+            if (taskMerge != null && taskMerge.Status.Equals(TaskStatus.Running))
             {
-                log.Error("Worker is running");
-                workerMerge.CancelAsync();
+                //task is running
+                log.Error("Current task is running.");
+                if (cts != null)
+                {
+                    cts.Cancel();
+                    log.Debug("Request to cancel task");
+                }
+                else
+                {
+                    log.Error("Cannot request to cancel task");
+                }
             }
             else
             {
-                ListOrders.Clear();
-                HashOrderID.Clear();
-                ProgressValue = 0;
-                workerMerge.RunWorkerAsync();
-                IsWorkerIdle = false;
+                //task is not running
+
+                //declare cancellation token
+                cts = new CancellationTokenSource();
+                cancelToken = cts.Token;
+
+                //handle progress report
+                var progressHander = new Progress<int>(value =>
+                {
+                    ProgressValue = value;
+                });
+                progressObject = progressHander as IProgress<int>;
+
+                //create task
+                try
+                {
+                    IsTaskIdle = false;
+                    taskMerge = Task.Run(() =>
+                    {
+                        if (IsUseDatabase)
+                        {
+                            ImportDatabase(TxtDatabaseFile);
+                        }
+
+                        string[] files = TxtHTMLFiles.Split(FILENAME_SEPERATOR);
+                        for (int i = 0; i < files.Length; ++i)
+                        {
+                            if (File.Exists(files[i]))
+                            {
+                                try
+                                {
+                                    LoadDataFromFile(files[i], i, files.Length);
+                                }
+                                catch (Exception e1)
+                                {
+                                    log.Error("Cannot load data from file: " + files[i], e1);
+                                }
+                            }
+                        }
+                        ListOrders.Sort();
+                        ListOrders.Reverse();
+                        return 13;
+                    });
+                    await taskMerge;
+                    log.Info("Task is completed. Number of orders: " + ListOrders.Count);
+                }
+                catch (OperationCanceledException)
+                {
+                    log.Debug("Operation is canceled");
+                }
+                catch (Exception e1)
+                {
+                    string s = e1.GetType().Name + ": " + (e1.Message ?? "No message");
+                    log.Debug("Exception " + s);
+                }
+                finally
+                {
+                    ProgressValue = 0;
+                    IsTaskIdle = true;
+                }
             }
         }
 
@@ -229,6 +296,11 @@ namespace BoughtItems.UI_Merge.ViewModel
                 writer.RenderBeginTag(HtmlTextWriterTag.Html);
 
                 writer.RenderBeginTag(HtmlTextWriterTag.Head);
+
+                writer.AddAttribute("charset", "UTF-8");
+                writer.RenderBeginTag(HtmlTextWriterTag.Meta);
+                writer.RenderEndTag();
+
                 writer.RenderBeginTag(HtmlTextWriterTag.Style);
                 writer.WriteLine("img.item_image {width: " + IMAGE_SIZE + "px;height: " + IMAGE_SIZE + "px}");
                 writer.WriteLine("table {border-collapse: collapse; table-layout: fixed}");
@@ -320,7 +392,7 @@ namespace BoughtItems.UI_Merge.ViewModel
             }
         }
 
-        private void LoadDataFromFile(string path, BackgroundWorker worker, int currentFile, int numberOfFile)
+        private void LoadDataFromFile(string path, int currentFile, int numberOfFile)
         {
             int startProgress = currentFile * 100 / numberOfFile;
             var doc = new HtmlDocument();
@@ -348,14 +420,14 @@ namespace BoughtItems.UI_Merge.ViewModel
             int currentIndex = 0;
             foreach (HtmlNode orderDiv in wrapperDiv.ChildNodes)
             {
-                if (worker.CancellationPending)
+                if (cancelToken != null)
                 {
-                    return;
+                    cancelToken.ThrowIfCancellationRequested();
                 }
 
                 OrderInfo order = new OrderInfo();
                 order.UserName = username;
-                worker.ReportProgress(startProgress + (currentIndex * 100 / numberOfFile / orderCount));
+                progressObject.Report(startProgress + (currentIndex * 100 / numberOfFile / orderCount));
                 ++currentIndex;
 
                 log.Info("Find order URL and ID");
@@ -413,9 +485,9 @@ namespace BoughtItems.UI_Merge.ViewModel
                 log.Info("Item nodes count: " + itemNodes.Count);
                 foreach (var itemNode in itemNodes)
                 {
-                    if (worker.CancellationPending)
+                    if (cancelToken != null)
                     {
-                        return;
+                        cancelToken.ThrowIfCancellationRequested();
                     }
 
                     ItemInfo item = new ItemInfo();
@@ -490,56 +562,5 @@ namespace BoughtItems.UI_Merge.ViewModel
             ListOrders.AddRange(tempListOrder);
             log.Info("Complete parsing: " + path + " | Item count: " + ListOrders.Count);
         }
-
-        #region Background worker
-
-        private BackgroundWorker workerMerge = null;
-
-        private void WorkerMerge_ProgressChanged(object sender, ProgressChangedEventArgs e)
-        {
-            ProgressValue = e.ProgressPercentage;
-        }
-
-        private void WorkerMerge_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
-        {
-            ListOrders.Sort();
-            ListOrders.Reverse();
-            ProgressValue = 0;
-            IsWorkerIdle = true;
-            if (e.Cancelled)
-            {
-                log.Error("Worker is cancelled");
-            }
-            else
-            {
-                log.Info("Worker is completed. Number of orders: " + ListOrders.Count);
-            }
-        }
-
-        private void WorkerMerge_DoWork(object sender, DoWorkEventArgs e)
-        {
-            if (IsUseDatabase)
-            {
-                ImportDatabase(TxtDatabaseFile);
-            }
-
-            string[] files = TxtHTMLFiles.Split(FILENAME_SEPERATOR);
-            for (int i = 0; i < files.Length; ++i)
-            {
-                if (File.Exists(files[i]))
-                {
-                    try
-                    {
-                        LoadDataFromFile(files[i], (BackgroundWorker)sender, i, files.Length);
-                    }
-                    catch (Exception e1)
-                    {
-                        log.Error("Cannot load data from file: " + files[i], e1);
-                    }
-                }
-            }
-        }
-
-        #endregion
     }
 }
