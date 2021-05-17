@@ -313,6 +313,8 @@ namespace BoughtItems.UI_Merge.ViewModel
                 writer.RenderBeginTag(HtmlTextWriterTag.Table);
 
                 writer.RenderBeginTag(HtmlTextWriterTag.Thead);
+                
+                //check new git
 
                 writer.RenderBeginTag(HtmlTextWriterTag.Tr);
                 writer.WriteLine("<th width=\"40\">No</th>");
