@@ -76,7 +76,7 @@ namespace BoughtItems.UI_Merge.ViewModel
         private HashSet<long> HashOrderID = new HashSet<long>();
 
         private const string NONE_TEXT = "None";
-        private readonly Regex regexOrderID = new Regex(@"\/order\/(\d+)\/");
+        private readonly Regex regexOrderID = new Regex(@"\/order\/(\d+)");
         private readonly Regex regexShopID = new Regex(@"\/shop\/(\d+)");
 
         //<div class="shopee-image__content" style="background-image: url(https://cf.shopee.vn/file/e40478ec9ce88362d0c479fff1cf6e70_tn);"><div class="shopee-image__content--blur"> </div></div>
@@ -313,7 +313,7 @@ namespace BoughtItems.UI_Merge.ViewModel
                 writer.RenderBeginTag(HtmlTextWriterTag.Table);
 
                 writer.RenderBeginTag(HtmlTextWriterTag.Thead);
-                
+
                 //check new git
 
                 writer.RenderBeginTag(HtmlTextWriterTag.Tr);
@@ -402,9 +402,9 @@ namespace BoughtItems.UI_Merge.ViewModel
             log.Info("HTML file is loaded: " + path);
 
             log.Info("Find wrapper div that contain all orders");
-            HtmlNode wrapperDiv = doc.DocumentNode.SelectSingleNode(GetNode("div", "purchase-list-page__checkout-list-card-container"));
-            int orderCount = wrapperDiv.ChildNodes.Count;
-            log.Info("Found number of child node div: " + orderCount);
+            HtmlNodeCollection orderDivs = doc.DocumentNode.SelectNodes(GetNode("div", "_32cw_C"));
+            int orderCount = orderDivs.Count;
+            log.Info("Found number of order node div: " + orderCount);
 
             List<OrderInfo> tempListOrder = new List<OrderInfo>();
             HtmlNode node = null;
@@ -420,7 +420,7 @@ namespace BoughtItems.UI_Merge.ViewModel
             }
 
             int currentIndex = 0;
-            foreach (HtmlNode orderDiv in wrapperDiv.ChildNodes)
+            foreach (HtmlNode orderDiv in orderDivs)
             {
                 if (cancelToken != null)
                 {
@@ -431,9 +431,9 @@ namespace BoughtItems.UI_Merge.ViewModel
                 order.UserName = username;
                 progressObject.Report(startProgress + (currentIndex * 100 / numberOfFile / orderCount));
                 ++currentIndex;
-
+                // ".//" + type + "[@class='" + nameClass + "']"
                 log.Info("Find order URL and ID");
-                node = orderDiv.SelectSingleNode(GetNode("a", "order-content__item-wrapper"));
+                node = orderDiv.SelectSingleNode(".//div[@class='" + "_3wGW0m" + "']/a");
                 if (node != null)
                 {
                     order.OrderURL = node.GetAttributeValue<string>("href", NONE_TEXT).Trim();
@@ -448,8 +448,9 @@ namespace BoughtItems.UI_Merge.ViewModel
                     continue;
                 }
 
+
                 log.Info("Find order total price");
-                node = orderDiv.SelectSingleNode(GetNode("span", "purchase-card-buttons__total-price"));
+                node = orderDiv.SelectSingleNode(GetNode("div", "isoXOF"));
                 if (node != null)
                 {
                     order.TotalPrice = GetNumberFromString(node.InnerText);
@@ -457,7 +458,7 @@ namespace BoughtItems.UI_Merge.ViewModel
                 }
 
                 log.Info("Find shop name");
-                node = orderDiv.SelectSingleNode(GetNode("span", "order-content__header__seller__name"));
+                node = orderDiv.SelectSingleNode(GetNode("div", "_2tDqUs"));
                 if (node != null)
                 {
                     order.ShopName = node.InnerText.Trim();
@@ -465,7 +466,7 @@ namespace BoughtItems.UI_Merge.ViewModel
                 }
 
                 log.Info("Find shop URL");
-                node = orderDiv.SelectSingleNode(GetNode("a", "order-content__header__seller__view-shop-btn-wrapper"));
+                node = orderDiv.SelectSingleNode(GetNode("a", "_2bGakT"));
                 if (node != null)
                 {
                     order.ShopURL = node.GetAttributeValue<string>("href", NONE_TEXT);
@@ -474,16 +475,17 @@ namespace BoughtItems.UI_Merge.ViewModel
                     log.Info("Found shop ID: " + order.ShopID);
                 }
 
-                log.Info("Find shop image");
-                node = orderDiv.SelectSingleNode(GetNode("img", "shopee-avatar__img"));
-                if (node != null)
-                {
-                    order.ShopImageURL = node.GetAttributeValue<string>("data-savepage-src", NONE_TEXT);
-                    log.Info("Found shop image URL: " + order.ShopImageURL);
-                }
+                //2021.06.01: Disable shop image
+                //log.Info("Find shop image");
+                //node = orderDiv.SelectSingleNode(GetNode("img", "shopee-avatar__img"));
+                //if (node != null)
+                //{
+                //    order.ShopImageURL = node.GetAttributeValue<string>("data-savepage-src", NONE_TEXT);
+                //    log.Info("Found shop image URL: " + order.ShopImageURL);
+                //}
 
                 log.Info("Get item nodes");
-                HtmlNodeCollection itemNodes = orderDiv.SelectNodes(GetNode("a", "order-content__item-wrapper"));
+                HtmlNodeCollection itemNodes = orderDiv.SelectNodes(GetNode("span", "_2WGfBS"));
                 log.Info("Item nodes count: " + itemNodes.Count);
                 foreach (var itemNode in itemNodes)
                 {
@@ -495,7 +497,7 @@ namespace BoughtItems.UI_Merge.ViewModel
                     ItemInfo item = new ItemInfo();
 
                     log.Info("Find item name");
-                    node = itemNode.SelectSingleNode(GetNode("div", "order-content__item__name"));
+                    node = itemNode.SelectSingleNode(GetNode("span", "_18b78C"));
                     if (node != null)
                     {
                         item.ItemName = node.InnerText.Trim();
@@ -503,7 +505,7 @@ namespace BoughtItems.UI_Merge.ViewModel
                     }
 
                     log.Info("Find item details");
-                    node = itemNode.SelectSingleNode(GetNode("div", "order-content__item__variation"));
+                    node = itemNode.SelectSingleNode(GetNode("div", "_1TLPCK"));
                     if (node != null)
                     {
                         item.ItemDetails = node.InnerText.Substring(node.InnerText.IndexOf(':') + 1).Trim();
@@ -511,24 +513,24 @@ namespace BoughtItems.UI_Merge.ViewModel
                     }
 
                     log.Info("Find item quantity");
-                    node = itemNode.SelectSingleNode(GetNode("div", "order-content__item__quantity"));
+                    node = itemNode.SelectSingleNode(GetNode("div", "aQNMRY"));
                     if (long.TryParse(node.InnerText.Substring(node.InnerText.IndexOf('x') + 1).Trim(), out item.NumberOfItem))
                     {
                         log.Info("Found item quantily: " + item.NumberOfItem);
                     }
 
                     log.Info("Find actual price");
-                    node = itemNode.SelectSingleNode(GetNode("div", "order-content__item__price-text"));
+                    node = itemNode.SelectSingleNode(GetNode("div", "_3M1Mfz"));
                     if (node != null)
                     {
-                        subNode = node.SelectSingleNode(GetNode("div", "shopee-price--primary"));
+                        subNode = node.SelectSingleNode(GetNode("span", "_2id4-o _3rNlHO"));
                         if (subNode != null)
                         {
                             item.ActualPrice = GetNumberFromString(subNode.InnerText);
                             log.Info("Found actual price: " + item.ActualPrice);
 
                             log.Info("Find original price");
-                            subNode = node.SelectSingleNode(GetNode("div", "shopee-price--original"));
+                            subNode = node.SelectSingleNode(GetNode("span", "_7zFjZr"));
                             if (subNode != null)
                             {
                                 item.OriginalPrice = GetNumberFromString(subNode.InnerText);
@@ -537,7 +539,7 @@ namespace BoughtItems.UI_Merge.ViewModel
                         }
                         else
                         {
-                            subNode = node.SelectSingleNode(".//div");
+                            subNode = node.SelectSingleNode(".//span");
                             if (subNode != null)
                             {
                                 item.ActualPrice = GetNumberFromString(subNode.InnerText);
