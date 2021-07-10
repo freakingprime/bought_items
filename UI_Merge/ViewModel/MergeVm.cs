@@ -97,7 +97,8 @@ namespace BoughtItems.UI_Merge.ViewModel
 
         private string GetNode(string type, string nameClass)
         {
-            return ".//" + type + "[@class='" + nameClass + "']";
+            return ".//" + type + "[contains(@class, '" + nameClass + "')]";
+            //return ".//" + type + "[@class='" + nameClass + "']";
         }
 
         private long GetNumberFromString(string s)
@@ -486,7 +487,14 @@ namespace BoughtItems.UI_Merge.ViewModel
 
                 log.Info("Get item nodes");
                 HtmlNodeCollection itemNodes = orderDiv.SelectNodes(GetNode("span", "_2WGfBS"));
-                log.Info("Item nodes count: " + itemNodes.Count);
+                if (itemNodes != null)
+                {
+                    log.Info("Item nodes count: " + itemNodes.Count);
+                }
+                else
+                {
+                    log.Error("Cannot get item node list");
+                }
                 foreach (var itemNode in itemNodes)
                 {
                     if (cancelToken != null)
@@ -494,71 +502,82 @@ namespace BoughtItems.UI_Merge.ViewModel
                         cancelToken.ThrowIfCancellationRequested();
                     }
 
-                    ItemInfo item = new ItemInfo();
-
-                    log.Info("Find item name");
-                    node = itemNode.SelectSingleNode(GetNode("span", "_18b78C"));
-                    if (node != null)
+                    try
                     {
-                        item.ItemName = node.InnerText.Trim();
-                        log.Info("Found item name: " + item.ItemName);
-                    }
+                        ItemInfo item = new ItemInfo();
 
-                    log.Info("Find item details");
-                    node = itemNode.SelectSingleNode(GetNode("div", "_1TLPCK"));
-                    if (node != null)
-                    {
-                        item.ItemDetails = node.InnerText.Substring(node.InnerText.IndexOf(':') + 1).Trim();
-                        log.Info("Found item details: " + item.ItemDetails);
-                    }
-
-                    log.Info("Find item quantity");
-                    node = itemNode.SelectSingleNode(GetNode("div", "aQNMRY"));
-                    if (long.TryParse(node.InnerText.Substring(node.InnerText.IndexOf('x') + 1).Trim(), out item.NumberOfItem))
-                    {
-                        log.Info("Found item quantily: " + item.NumberOfItem);
-                    }
-
-                    log.Info("Find actual price");
-                    node = itemNode.SelectSingleNode(GetNode("div", "_3M1Mfz"));
-                    if (node != null)
-                    {
-                        subNode = node.SelectSingleNode(GetNode("span", "_2id4-o _3rNlHO"));
-                        if (subNode != null)
+                        log.Info("Find item name");
+                        node = itemNode.SelectSingleNode(GetNode("span", "_18b78C"));
+                        if (node != null)
                         {
-                            item.ActualPrice = GetNumberFromString(subNode.InnerText);
-                            log.Info("Found actual price: " + item.ActualPrice);
-
-                            log.Info("Find original price");
-                            subNode = node.SelectSingleNode(GetNode("span", "_7zFjZr"));
-                            if (subNode != null)
-                            {
-                                item.OriginalPrice = GetNumberFromString(subNode.InnerText);
-                                log.Info("Found original price: " + item.OriginalPrice);
-                            }
+                            item.ItemName = node.InnerText.Trim();
+                            log.Info("Found item name: " + item.ItemName);
                         }
-                        else
+
+                        log.Info("Find item details");
+                        node = itemNode.SelectSingleNode(GetNode("div", "_1TLPCK"));
+                        if (node != null)
                         {
-                            subNode = node.SelectSingleNode(".//span");
+                            item.ItemDetails = node.InnerText.Substring(node.InnerText.IndexOf(':') + 1).Trim();
+                            log.Info("Found item details: " + item.ItemDetails);
+                        }
+
+                        log.Info("Find item quantity");
+                        node = itemNode.SelectSingleNode(GetNode("div", "aQNMRY"));
+                        if (long.TryParse(node.InnerText.Substring(node.InnerText.IndexOf('x') + 1).Trim(), out item.NumberOfItem))
+                        {
+                            log.Info("Found item quantily: " + item.NumberOfItem);
+                        }
+
+                        log.Info("Find actual price");
+                        node = itemNode.SelectSingleNode(GetNode("div", "_3M1Mfz"));
+                        if (node != null)
+                        {
+                            subNode = node.SelectSingleNode(GetNode("span", "_2id4-o _3rNlHO"));
                             if (subNode != null)
                             {
                                 item.ActualPrice = GetNumberFromString(subNode.InnerText);
-                                item.OriginalPrice = item.ActualPrice;
-                                log.Info("There's only 1 price: " + item.ActualPrice);
+                                log.Info("Found actual price: " + item.ActualPrice);
+
+                                log.Info("Find original price");
+                                subNode = node.SelectSingleNode(GetNode("span", "_7zFjZr"));
+                                if (subNode != null)
+                                {
+                                    item.OriginalPrice = GetNumberFromString(subNode.InnerText);
+                                    log.Info("Found original price: " + item.OriginalPrice);
+                                }
+                            }
+                            else
+                            {
+                                subNode = node.SelectSingleNode(".//span");
+                                if (subNode != null)
+                                {
+                                    item.ActualPrice = GetNumberFromString(subNode.InnerText);
+                                    item.OriginalPrice = item.ActualPrice;
+                                    log.Info("There's only 1 price: " + item.ActualPrice);
+                                }
                             }
                         }
-                    }
 
-                    log.Info("Find item image");
-                    node = itemNode.SelectSingleNode(GetNode("div", "shopee-image__content"));
-                    if (node != null)
+                        log.Info("Find item image");
+                        node = itemNode.SelectSingleNode(GetNode("div", "shopee-image__content"));
+                        if (node != null)
+                        {
+                            item.ImageURL = regexItemImageURL.Match(node.OuterHtml).Value.Trim();
+                            log.Info("Found item image URL: " + item.ImageURL);
+                        }
+
+                        log.Info("Add item to list");
+                        order.ListItems.Add(item);
+                    }
+                    catch (NullReferenceException e1)
                     {
-                        item.ImageURL = regexItemImageURL.Match(node.OuterHtml).Value.Trim();
-                        log.Info("Found item image URL: " + item.ImageURL);
+                        log.Error("Cannot get item node because of null pointer", e1);
                     }
-
-                    log.Info("Add item to list");
-                    order.ListItems.Add(item);
+                    catch (Exception e2)
+                    {
+                        log.Error("Cannot get item node", e2);
+                    }
                 }
                 tempListOrder.Add(order);
                 HashOrderID.Add(order.ID);
