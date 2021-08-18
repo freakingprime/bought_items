@@ -67,13 +67,12 @@ namespace BoughtItems.UI_Merge.ViewModel
             set { SetValue(ref _isWorkerIdle, value); }
         }
 
-
         #endregion
 
         #region Normal properties
 
-        private List<OrderInfo> ListOrders = new List<OrderInfo>();
-        private HashSet<long> HashOrderID = new HashSet<long>();
+        private readonly List<OrderInfo> ListOrders = new List<OrderInfo>();
+        private readonly HashSet<long> HashOrderID = new HashSet<long>();
 
         private const string NONE_TEXT = "None";
         private readonly Regex regexOrderID = new Regex(@"\/order\/(\d+)");
@@ -257,6 +256,22 @@ namespace BoughtItems.UI_Merge.ViewModel
                 Properties.Settings.Default.LastDatabaseDirectory = directory;
                 Properties.Settings.Default.Save();
                 File.WriteAllText(name, JsonConvert.SerializeObject(ListOrders, Formatting.Indented));
+            }
+        }
+
+        public void ButtonAutoLoad()
+        {
+            string dirPath = Properties.Settings.Default.LastHTMLDirectory;
+            if (Directory.Exists(dirPath))
+            {
+                TxtHTMLFiles = string.Empty;
+                foreach (var item in Directory.GetFiles(dirPath))
+                {
+                    if (item.EndsWith("html"))
+                    {
+                        TxtHTMLFiles += item + Environment.NewLine;
+                    }
+                }
             }
         }
 

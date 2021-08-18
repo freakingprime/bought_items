@@ -110,5 +110,10 @@ namespace BoughtItems.UI_Merge.View
         {
             context.ButtonExportToHTML();
         }
+
+        private void BtnAutoLoad_Click(object sender, RoutedEventArgs e)
+        {
+            context.ButtonAutoLoad();
+        }
     }
 }

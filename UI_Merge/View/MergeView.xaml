@@ -44,7 +44,11 @@
                     <RowDefinition x:Name="RowDatabaseFile"/>
                 </Grid.RowDefinitions>
                 <TextBlock Text="HTML Files" Grid.Row="0" Grid.Column="0"/>
-                <Button Content="Browse" Name="BtnBrowseHTMLFiles" Grid.Row="0" Grid.Column="1" Click="BtnBrowseHTMLFiles_Click"/>
+                <StackPanel Orientation="Vertical" Grid.Row="0" Grid.Column="1">
+                    <Button Content="Browse" Name="BtnBrowseHTMLFiles" Click="BtnBrowseHTMLFiles_Click"/>
+                    <Button Content="Auto Load" Name="BtnAutoLoad" Click="BtnAutoLoad_Click"/>
+                </StackPanel>
+               
                 <TextBox x:Name="TxtSelectedHTML"
                          Grid.Row="0" 
                          Grid.Column="2" 
