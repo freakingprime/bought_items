@@ -87,6 +87,7 @@
       <SubType>Designer</SubType>
     </ApplicationDefinition>
     <Compile Include="UI_MainWindow\ViewModel\MainWindowVm.cs" />
+    <Compile Include="UI_Merge\Model\ImageInfo.cs" />
     <Compile Include="UI_Merge\Model\ItemInfo.cs" />
     <Compile Include="UI_Merge\Model\OrderInfo.cs" />
     <Compile Include="UI_Merge\ViewModel\MergeVm.cs" />

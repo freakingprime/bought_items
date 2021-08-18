@@ -48,7 +48,7 @@
                     <Button Content="Browse" Name="BtnBrowseHTMLFiles" Click="BtnBrowseHTMLFiles_Click"/>
                     <Button Content="Auto Load" Name="BtnAutoLoad" Click="BtnAutoLoad_Click"/>
                 </StackPanel>
-               
+
                 <TextBox x:Name="TxtSelectedHTML"
                          Grid.Row="0" 
                          Grid.Column="2" 
@@ -86,6 +86,9 @@
                     <Button x:Name="BtnMerge" Content="Merge" Click="BtnMerge_Click"/>
                     <Button x:Name="BtnExportJSON" Content="Export to JSON" Click="BtnExportJSON_Click"/>
                     <Button x:Name="BtnExportToHTML" Content="Export to HTML and database file" Click="BtnExportToHTML_Click"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Name="StackDebug">
+                    <Button x:Name="BtnDownloadImage" Content="Download Images" Click="BtnDownloadImage_Click" IsEnabled="{Binding DownloadButtonEnabled}"/>
                 </StackPanel>
             </StackPanel>
         </GroupBox>

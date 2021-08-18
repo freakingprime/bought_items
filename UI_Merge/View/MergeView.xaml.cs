@@ -115,5 +115,10 @@ namespace BoughtItems.UI_Merge.View
         {
             context.ButtonAutoLoad();
         }
+
+        private void BtnDownloadImage_Click(object sender, RoutedEventArgs e)
+        {
+            context.ButtonDownloadImages();
+        }
     }
 }

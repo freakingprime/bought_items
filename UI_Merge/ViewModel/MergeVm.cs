@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -23,6 +24,7 @@ namespace BoughtItems.UI_Merge.ViewModel
         public MergeVm()
         {
             IsTaskIdle = true;
+            DownloadButtonEnabled = true;
         }
 
         #region Bind properties
@@ -67,9 +69,20 @@ namespace BoughtItems.UI_Merge.ViewModel
             set { SetValue(ref _isWorkerIdle, value); }
         }
 
+        private bool _downloadButtonEnabled;
+
+        public bool DownloadButtonEnabled
+        {
+            get { return _downloadButtonEnabled; }
+            set { SetValue(ref _downloadButtonEnabled, value); }
+        }
+
+
         #endregion
 
         #region Normal properties
+
+        private const string IMAGE_FOLDER_NAME = "images";
 
         private readonly List<OrderInfo> ListOrders = new List<OrderInfo>();
         private readonly HashSet<long> HashOrderID = new HashSet<long>();
@@ -255,8 +268,86 @@ namespace BoughtItems.UI_Merge.ViewModel
                 log.Info("Directory: " + directory + " | Exported to: " + name);
                 Properties.Settings.Default.LastDatabaseDirectory = directory;
                 Properties.Settings.Default.Save();
+                ClearImageURLFromIllegalCharacters();
                 File.WriteAllText(name, JsonConvert.SerializeObject(ListOrders, Formatting.Indented));
             }
+        }
+
+        public async void ButtonDownloadImages()
+        {
+            ImportDatabase(TxtDatabaseFile);
+            string imageFolderPath = Path.Combine(Path.GetDirectoryName(TxtDatabaseFile), IMAGE_FOLDER_NAME);
+            if (!Directory.Exists(imageFolderPath))
+            {
+                Directory.CreateDirectory(imageFolderPath);
+            }
+
+            const int NUMBER_OF_THREAD = 8;
+            int globalIndex = -1;
+            int orderCount = ListOrders.Count;
+            List<Task<List<ImageInfo>>> listTasks = new List<Task<List<ImageInfo>>>();
+            DownloadButtonEnabled = false;
+            for (int i = 0; i < NUMBER_OF_THREAD; ++i)
+            {
+                int threadIndex = i;
+                listTasks.Add(Task.Run(() =>
+                {
+                    WebClient wc = new WebClient();
+                    int k = Interlocked.Increment(ref globalIndex);
+                    List<ImageInfo> result = new List<ImageInfo>();
+                    while (k < orderCount)
+                    {
+                        foreach (ItemInfo item in ListOrders[k].ListItems)
+                        {
+                            ImageInfo info = new ImageInfo
+                            {
+                                URL = item.ImageURL
+                            };
+                            string localPath = DownloadImage(wc, info.URL, Path.Combine(imageFolderPath, item.LocalImageName));
+                            if (localPath.Length > 0)
+                            {
+                                info.LocalImagePath = localPath;
+                                result.Add(info);
+                            }
+                        }
+                        k = Interlocked.Increment(ref globalIndex);
+                    }
+                    return result;
+                }));
+            }
+            await Task.WhenAll(listTasks.ToArray());
+            List<ImageInfo> finalResult = new List<ImageInfo>();
+            foreach (var task in listTasks)
+            {
+                if (task.Status == TaskStatus.RanToCompletion)
+                {
+                    finalResult.AddRange(task.Result);
+                }
+            }
+            DownloadButtonEnabled = true;
+            log.Info("Number of newly downloaded image files: " + finalResult.Count);
+        }
+
+        private string DownloadImage(WebClient wc, string url, string path)
+        {
+            string result = string.Empty;
+            if (!File.Exists(path))
+            {
+                try
+                {
+                    wc.DownloadFile(url, path);
+                }
+                catch (Exception e1)
+                {
+                    log.Error("Cannot download image: " + url, e1);
+                }
+                if (File.Exists(path))
+                {
+                    log.Info("Downloaded: " + url + " to " + path);
+                    result = path;
+                }
+            }
+            return result;
         }
 
         public void ButtonAutoLoad()
@@ -296,7 +387,26 @@ namespace BoughtItems.UI_Merge.ViewModel
                 {
                     string backupName = Path.Combine(Path.GetDirectoryName(TxtDatabaseFile), "Backup_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".json");
                     File.Copy(TxtDatabaseFile, backupName);
+                    ClearImageURLFromIllegalCharacters();
                     File.WriteAllText(TxtDatabaseFile, JsonConvert.SerializeObject(ListOrders, Formatting.Indented));
+                }
+            }
+        }
+
+        private void ClearImageURLFromIllegalCharacters()
+        {
+            foreach (var order in ListOrders)
+            {
+                foreach (var item in order.ListItems)
+                {
+                    if (item.ImageURL.Contains(")"))
+                    {
+                        item.ImageURL = item.ImageURL.Remove(item.ImageURL.IndexOf(")"));
+                    }
+                    if (item.LocalImageName.Length < 2)
+                    {
+                        item.LocalImageName = item.ImageURL.Substring(item.ImageURL.LastIndexOf("/") + 1) + ".jpg";
+                    }
                 }
             }
         }
@@ -335,6 +445,7 @@ namespace BoughtItems.UI_Merge.ViewModel
                 writer.RenderBeginTag(HtmlTextWriterTag.Tr);
                 writer.WriteLine("<th width=\"40\">No</th>");
                 writer.WriteLine("<th width=\"150\">Image</th>");
+                writer.WriteLine("<th width=\"150\">Local Image</th>");
                 writer.WriteLine("<th>Item</th>");
                 writer.WriteLine("<th width=\"70\">Price</th>");
                 writer.WriteLine("<th width=\"125\">Order</th>");
@@ -355,6 +466,7 @@ namespace BoughtItems.UI_Merge.ViewModel
                         ++count;
                         writer.WriteLine("<td>" + count + "</td>");
                         writer.WriteLine(string.Format("<td><img class=\"item_image\" src=\"{0}\"/></td>", item.ImageURL));
+                        writer.WriteLine(string.Format("<td><img class=\"item_image\" src=\"{0}\"/></td>", IMAGE_FOLDER_NAME + "/" + item.LocalImageName));
 
                         //item content
                         writer.RenderBeginTag(HtmlTextWriterTag.Td);
@@ -433,6 +545,14 @@ namespace BoughtItems.UI_Merge.ViewModel
             {
                 username = node.InnerText.Trim();
                 log.Info("Found username: " + username);
+            }
+
+            //2021.08.18: Download images too
+            WebClient wc = new WebClient();
+            string imageFolderPath = Path.Combine(Path.GetDirectoryName(TxtDatabaseFile), IMAGE_FOLDER_NAME);
+            if (!Directory.Exists(imageFolderPath))
+            {
+                Directory.CreateDirectory(imageFolderPath);
             }
 
             int currentIndex = 0;
@@ -579,6 +699,8 @@ namespace BoughtItems.UI_Merge.ViewModel
                         if (node != null)
                         {
                             item.ImageURL = regexItemImageURL.Match(node.OuterHtml).Value.Trim();
+                            item.LocalImageName = item.ImageURL.Substring(item.ImageURL.LastIndexOf("/") + 1) + ".jpg";
+                            _ = DownloadImage(wc, item.ImageURL, Path.Combine(imageFolderPath, item.LocalImageName));
                             log.Info("Found item image URL: " + item.ImageURL);
                         }
 
