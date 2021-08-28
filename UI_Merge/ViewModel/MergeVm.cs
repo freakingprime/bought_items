@@ -110,12 +110,10 @@ namespace BoughtItems.UI_Merge.ViewModel
         private string GetNode(string type, string nameClass)
         {
             return ".//" + type + "[contains(@class, '" + nameClass + "')]";
-            //return ".//" + type + "[@class='" + nameClass + "']";
         }
 
         private long GetNumberFromString(string s)
         {
-            long result = 0;
             int i = 0;
             while (i < s.Length)
             {
@@ -128,7 +126,10 @@ namespace BoughtItems.UI_Merge.ViewModel
                     ++i;
                 }
             }
-            long.TryParse(s, out result);
+            if (!long.TryParse(s, out long result))
+            {
+                result = 0;
+            }
             return result;
         }
 
@@ -200,13 +201,11 @@ namespace BoughtItems.UI_Merge.ViewModel
                 cancelToken = cts.Token;
 
                 //handle progress report
-                var progressHander = new Progress<int>(value =>
+                progressObject = new Progress<int>(value =>
                 {
                     ProgressValue = value;
                 });
-                progressObject = progressHander as IProgress<int>;
 
-                //create task
                 try
                 {
                     IsTaskIdle = false;
@@ -216,7 +215,6 @@ namespace BoughtItems.UI_Merge.ViewModel
                         {
                             ImportDatabase(TxtDatabaseFile);
                         }
-
                         string[] files = TxtHTMLFiles.Split(FILENAME_SEPERATOR);
                         for (int i = 0; i < files.Length; ++i)
                         {
@@ -235,6 +233,7 @@ namespace BoughtItems.UI_Merge.ViewModel
                         }
                         ListOrders.Sort();
                         ListOrders.Reverse();
+                        ButtonMoveImages();
                         return 13;
                     });
                     await taskMerge;
@@ -253,6 +252,65 @@ namespace BoughtItems.UI_Merge.ViewModel
                 {
                     ProgressValue = 0;
                     IsTaskIdle = true;
+                }
+            }
+        }
+
+        public void ButtonMoveImages()
+        {
+            const int MAX_FILE = 200;
+            DirectoryInfo di = new DirectoryInfo(Path.Combine(Path.GetDirectoryName(TxtDatabaseFile), IMAGE_FOLDER_NAME));
+            if (!di.Exists)
+            {
+                di.Create();
+            }
+            DirectoryInfo[] arrSubDir = di.GetDirectories("*", SearchOption.TopDirectoryOnly);
+            FileInfo[] tempArr;
+
+            //move file out of sub folder if there's too many file in sub folder
+            for (int i = 0; i < arrSubDir.Length; ++i)
+            {
+                tempArr = arrSubDir[i].GetFiles("*");
+                if (tempArr.Length > MAX_FILE)
+                {
+                    for (int j = MAX_FILE; j < tempArr.Length; ++j)
+                    {
+                        File.Move(tempArr[j].FullName, Path.Combine(di.FullName, tempArr[j].Name));
+                    }
+                }
+            }
+
+            //move file into current sub folders
+            tempArr = di.GetFiles("*", SearchOption.TopDirectoryOnly);
+            int index = 0;
+            for (int i = 0; i < arrSubDir.Length; ++i)
+            {
+                int count = arrSubDir[i].GetFiles("*").Length;
+                while (count < MAX_FILE && index < tempArr.Length)
+                {
+                    File.Move(tempArr[index].FullName, Path.Combine(arrSubDir[i].FullName, tempArr[index].Name));
+                    ++index;
+                    ++count;
+                }
+            }
+
+            //create more sub folders and copy file into it
+            tempArr = di.GetFiles("*", SearchOption.TopDirectoryOnly);
+            index = 0;
+            int newFolderSuffix = arrSubDir.Length;
+            while (index < tempArr.Length)
+            {
+                DirectoryInfo newDirInfo = new DirectoryInfo(Path.Combine(di.FullName, IMAGE_FOLDER_NAME + newFolderSuffix++));
+                if (!newDirInfo.Exists)
+                {
+                    newDirInfo.Create();
+                }
+                int count = 0;
+                while (count < MAX_FILE && index < tempArr.Length)
+                {
+                    File.Move(tempArr[index].FullName, Path.Combine(newDirInfo.FullName, tempArr[index].Name));
+                    ++index;
+                    ++count;
                 }
             }
         }
@@ -277,10 +335,10 @@ namespace BoughtItems.UI_Merge.ViewModel
         public async void ButtonDownloadImages()
         {
             ImportDatabase(TxtDatabaseFile);
-            string imageFolderPath = Path.Combine(Path.GetDirectoryName(TxtDatabaseFile), IMAGE_FOLDER_NAME);
-            if (!Directory.Exists(imageFolderPath))
+            DirectoryInfo di = new DirectoryInfo(Path.Combine(Path.GetDirectoryName(TxtDatabaseFile), IMAGE_FOLDER_NAME));
+            if (!di.Exists)
             {
-                Directory.CreateDirectory(imageFolderPath);
+                di.Create();
             }
 
             const int NUMBER_OF_THREAD = 8;
@@ -288,6 +346,7 @@ namespace BoughtItems.UI_Merge.ViewModel
             int orderCount = ListOrders.Count;
             List<Task<List<ImageInfo>>> listTasks = new List<Task<List<ImageInfo>>>();
             DownloadButtonEnabled = false;
+            HashSet<string> hashNames = new HashSet<string>(di.GetFiles("*", SearchOption.AllDirectories).Select(i => i.Name).ToList());
             for (int i = 0; i < NUMBER_OF_THREAD; ++i)
             {
                 int threadIndex = i;
@@ -300,11 +359,15 @@ namespace BoughtItems.UI_Merge.ViewModel
                     {
                         foreach (ItemInfo item in ListOrders[k].ListItems)
                         {
+                            if (hashNames.Contains(item.LocalImageName))
+                            {
+                                continue;
+                            }
                             ImageInfo info = new ImageInfo
                             {
                                 URL = item.ImageURL
                             };
-                            string localPath = DownloadImage(wc, info.URL, Path.Combine(imageFolderPath, item.LocalImageName));
+                            string localPath = DownloadImage(wc, info.URL, Path.Combine(di.FullName, item.LocalImageName));
                             if (localPath.Length > 0)
                             {
                                 info.LocalImagePath = localPath;
@@ -327,6 +390,7 @@ namespace BoughtItems.UI_Merge.ViewModel
             }
             DownloadButtonEnabled = true;
             log.Info("Number of newly downloaded image files: " + finalResult.Count);
+            ButtonMoveImages();
         }
 
         private string DownloadImage(WebClient wc, string url, string path)
@@ -396,9 +460,9 @@ namespace BoughtItems.UI_Merge.ViewModel
 
         private void ClearImageURLFromIllegalCharacters()
         {
-            foreach (var order in ListOrders)
+            foreach (OrderInfo order in ListOrders)
             {
-                foreach (var item in order.ListItems)
+                foreach (ItemInfo item in order.ListItems)
                 {
                     if (item.ImageURL.Contains(")"))
                     {
@@ -458,16 +522,37 @@ namespace BoughtItems.UI_Merge.ViewModel
 
                 writer.RenderBeginTag(HtmlTextWriterTag.Tbody);
                 int count = 0;
-                foreach (var order in ListOrders)
+
+                //create local file name database
+                Dictionary<string, string> dict = new Dictionary<string, string>();
+                DirectoryInfo di = new DirectoryInfo(Path.Combine(Path.GetDirectoryName(TxtDatabaseFile), IMAGE_FOLDER_NAME));
+                if (di.Exists)
                 {
-                    foreach (var item in order.ListItems)
+                    var subDirs = di.GetDirectories("*");
+                    foreach (var imageDir in subDirs)
+                    {
+                        var files = imageDir.GetFiles("*");
+                        foreach (var file in files)
+                        {
+                            dict.Add(file.Name, imageDir.Name);
+                        }
+                    }
+                }
+
+                foreach (OrderInfo order in ListOrders)
+                {
+                    foreach (ItemInfo item in order.ListItems)
                     {
                         writer.RenderBeginTag(HtmlTextWriterTag.Tr);
 
                         ++count;
                         writer.WriteLine("<td>" + count + "</td>");
                         writer.WriteLine(string.Format("<td><img class=\"item_image\" src=\"{0}\"/></td>", item.ImageURL));
-                        writer.WriteLine(string.Format("<td><img class=\"item_image\" src=\"{0}\"/></td>", IMAGE_FOLDER_NAME + "/" + item.LocalImageName));
+                        if (!dict.TryGetValue(item.LocalImageName, out string subFolderName))
+                        {
+                            subFolderName = "";
+                        }
+                        writer.WriteLine(string.Format("<td><img class=\"item_image\" src=\"{0}\"/></td>", IMAGE_FOLDER_NAME + "/" + subFolderName + (subFolderName.Length > 0 ? "/" : "") + item.LocalImageName));
 
                         //item content
                         writer.RenderBeginTag(HtmlTextWriterTag.Td);
@@ -562,8 +647,10 @@ namespace BoughtItems.UI_Merge.ViewModel
                     cancelToken.ThrowIfCancellationRequested();
                 }
 
-                OrderInfo order = new OrderInfo();
-                order.UserName = username;
+                OrderInfo order = new OrderInfo
+                {
+                    UserName = username
+                };
                 progressObject.Report(startProgress + (currentIndex * 100 / numberOfFile / orderCount));
                 ++currentIndex;
                 // ".//" + type + "[@class='" + nameClass + "']"
@@ -582,7 +669,6 @@ namespace BoughtItems.UI_Merge.ViewModel
                     log.Info("This order is duplicated: " + order.ID);
                     continue;
                 }
-
 
                 log.Info("Find order total price");
                 node = orderDiv.SelectSingleNode(GetNode("div", "_1MS3t2"));

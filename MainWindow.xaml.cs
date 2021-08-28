@@ -23,34 +23,24 @@ namespace BoughtItems
     public partial class MainWindow : Window
     {
         private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType.Name);
+        private LogController oldLog = LogController.Instance;
 
         public MainWindow()
         {
             InitializeComponent();
-            AssignDataContext();
-            this.Title = Properties.Resources.TITLE + " " + Properties.Resources.VERSION + "." + Properties.Resources.BuildTime;
+            Title = Properties.Resources.TITLE + " " + Properties.Resources.VERSION + "." + Properties.Resources.BuildTime;
+            oldLog.SetTextBox(TxtLog);
         }
 
-        private MainWindowVm context;
-
-        private void AssignDataContext()
-        {
-            this.context = this.DataContext as MainWindowVm;
-            if (context == null)
-            {
-                log.Error("Cannot get data context. Value is null.");
-            }
-        }
+        private MainWindowVm context = new MainWindowVm();
 
         private void Window_DataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
         {
             log.Info("Main Window data context is changed");
-            AssignDataContext();
-        }
-
-        private void Window_Loaded(object sender, RoutedEventArgs e)
-        {
-            
+            if (e.NewValue is MainWindowVm vm)
+            {
+                context = vm;
+            }
         }
     }
 }

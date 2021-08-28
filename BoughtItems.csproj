@@ -86,6 +86,7 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="LogController.cs" />
     <Compile Include="UI_MainWindow\ViewModel\MainWindowVm.cs" />
     <Compile Include="UI_Merge\Model\ImageInfo.cs" />
     <Compile Include="UI_Merge\Model\ItemInfo.cs" />

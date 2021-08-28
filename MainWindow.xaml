@@ -8,10 +8,16 @@
         xmlns:merge="clr-namespace:BoughtItems.UI_Merge.View"
         mc:Ignorable="d"
         DataContextChanged="Window_DataContextChanged"
-        Loaded="Window_Loaded"
         Title="MainWindow" Height="450" Width="800">
     <Window.DataContext>
         <vm:MainWindowVm/>
     </Window.DataContext>
-    <merge:MergeView/>
+    <StackPanel>
+        <merge:MergeView/>
+        <GroupBox Header="Log">
+            <StackPanel Orientation="Vertical">
+                <TextBox Name="TxtLog" IsReadOnly="True" VerticalScrollBarVisibility="Visible" TextWrapping="Wrap" Height="100"/>
+            </StackPanel>
+        </GroupBox>
+    </StackPanel>
 </Window>

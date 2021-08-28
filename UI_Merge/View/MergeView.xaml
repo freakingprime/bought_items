@@ -89,12 +89,8 @@
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Name="StackDebug">
                     <Button x:Name="BtnDownloadImage" Content="Download Images" Click="BtnDownloadImage_Click" IsEnabled="{Binding DownloadButtonEnabled}"/>
+                    <Button x:Name="BtnMoveImages" Content="Move Images" Click="BtnMoveImages_Click" IsEnabled="{Binding DownloadButtonEnabled}"/>
                 </StackPanel>
-            </StackPanel>
-        </GroupBox>
-        <GroupBox Header="Log">
-            <StackPanel Orientation="Vertical">
-                <TextBox Name="TxtLog" IsReadOnly="True" VerticalScrollBarVisibility="Visible" TextWrapping="Wrap" Height="100"/>
             </StackPanel>
         </GroupBox>
     </StackPanel>
