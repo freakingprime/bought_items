@@ -101,11 +101,6 @@ namespace BoughtItems.UI_Merge.View
             context.ButtonMerge();
         }
 
-        private void BtnExportJSON_Click(object sender, RoutedEventArgs e)
-        {
-            context.ButtonExportToJSON();
-        }
-
         private void BtnExportToHTML_Click(object sender, RoutedEventArgs e)
         {
             context.ButtonExportToHTML();

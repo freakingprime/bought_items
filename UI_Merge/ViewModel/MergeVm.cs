@@ -236,7 +236,7 @@ namespace BoughtItems.UI_Merge.ViewModel
                         ButtonMoveImages();
                         return 13;
                     });
-                    await taskMerge;
+                    _ = await taskMerge;
                     log.Info("Task is completed. Number of orders: " + ListOrders.Count);
                 }
                 catch (OperationCanceledException)
@@ -315,23 +315,6 @@ namespace BoughtItems.UI_Merge.ViewModel
             }
         }
 
-        public void ButtonExportToJSON()
-        {
-            SaveFileDialog dialog = new SaveFileDialog();
-            dialog.InitialDirectory = Utils.GetValidFolderPath(Properties.Settings.Default.LastDatabaseDirectory);
-            dialog.Filter = "JSON File|*.json";
-            if ((bool)dialog.ShowDialog())
-            {
-                string name = dialog.FileName;
-                string directory = Utils.GetValidFolderPath(name);
-                log.Info("Directory: " + directory + " | Exported to: " + name);
-                Properties.Settings.Default.LastDatabaseDirectory = directory;
-                Properties.Settings.Default.Save();
-                ClearImageURLFromIllegalCharacters();
-                File.WriteAllText(name, JsonConvert.SerializeObject(ListOrders, Formatting.Indented));
-            }
-        }
-
         public async void ButtonDownloadImages()
         {
             ImportDatabase(TxtDatabaseFile);
@@ -379,14 +362,11 @@ namespace BoughtItems.UI_Merge.ViewModel
                     return result;
                 }));
             }
-            await Task.WhenAll(listTasks.ToArray());
+            var allResults = await Task.WhenAll(listTasks.ToArray());
             List<ImageInfo> finalResult = new List<ImageInfo>();
-            foreach (var task in listTasks)
+            foreach (var ret in allResults)
             {
-                if (task.Status == TaskStatus.RanToCompletion)
-                {
-                    finalResult.AddRange(task.Result);
-                }
+                finalResult.AddRange(ret);
             }
             DownloadButtonEnabled = true;
             log.Info("Number of newly downloaded image files: " + finalResult.Count);
@@ -444,14 +424,26 @@ namespace BoughtItems.UI_Merge.ViewModel
                 Properties.Settings.Default.ExportedHTMLDirectory = directory;
                 Properties.Settings.Default.Save();
 
-                //TODO: Export to HTML
+                const string BACKUP_FOLDER = "backup";
+                _ = Directory.CreateDirectory(Path.Combine(directory, BACKUP_FOLDER));
+
+                //backup HTML file
+                string backupName = Path.GetFileNameWithoutExtension(name);
+                backupName = backupName + "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + Path.GetExtension(name);
+                backupName = Path.Combine(Path.GetDirectoryName(name), BACKUP_FOLDER, backupName);
+                File.Copy(name, backupName, true);
+
                 CreateHTML(name);
 
                 //Save to database file
                 if (IsUseDatabase && File.Exists(TxtDatabaseFile))
                 {
-                    string backupName = Path.Combine(Path.GetDirectoryName(TxtDatabaseFile), "Backup_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".json");
+                    //backup JSON file
+                    backupName = Path.GetFileNameWithoutExtension(TxtDatabaseFile);
+                    backupName = backupName + "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + Path.GetExtension(TxtDatabaseFile);
+                    backupName = Path.Combine(Path.GetDirectoryName(TxtDatabaseFile), BACKUP_FOLDER, backupName);
                     File.Copy(TxtDatabaseFile, backupName);
+
                     ClearImageURLFromIllegalCharacters();
                     File.WriteAllText(TxtDatabaseFile, JsonConvert.SerializeObject(ListOrders, Formatting.Indented));
                 }
@@ -482,6 +474,7 @@ namespace BoughtItems.UI_Merge.ViewModel
         {
             StringWriter stringWriter = new StringWriter();
             const int IMAGE_SIZE = 150;
+            int count = 0;
             using (HtmlTextWriter writer = new HtmlTextWriter(stringWriter))
             {
                 writer.RenderBeginTag(HtmlTextWriterTag.Html);
@@ -511,17 +504,17 @@ namespace BoughtItems.UI_Merge.ViewModel
                 writer.WriteLine("<th width=\"40\">No</th>");
                 writer.WriteLine("<th width=\"150\">Image</th>");
                 writer.WriteLine("<th width=\"150\">Local Image</th>");
-                writer.WriteLine("<th>Item</th>");
-                writer.WriteLine("<th width=\"70\">Price</th>");
-                writer.WriteLine("<th width=\"125\">Order</th>");
-                writer.WriteLine("<th width=\"120\">Shop</th>");
+                writer.WriteLine("<th>Item (" + ListOrders.Sum(i => i.ListItems.Count) + ") </th>");
+                writer.WriteLine("<th width=\"70\">Price (" + ListOrders.Sum(i => i.ListItems.Sum(j => j.ActualPrice * j.NumberOfItem)).ToString("N0") + ") </th>");
+                writer.WriteLine("<th width=\"125\">Order (" + ListOrders.GroupBy(i => i.OrderURL).Select(group => group.First()).Count() + ") </th>");
+                writer.WriteLine("<th width=\"120\">Shop (" + ListOrders.GroupBy(i => i.ShopURL).Select(g => g.First()).Count() + ") </th>");
                 writer.WriteLine("<th width=\"120\">User</th>");
                 writer.RenderEndTag(); //end tr
 
                 writer.RenderEndTag(); //end thead
 
                 writer.RenderBeginTag(HtmlTextWriterTag.Tbody);
-                int count = 0;
+                count = 0;
 
                 //create local file name database
                 Dictionary<string, string> dict = new Dictionary<string, string>();
@@ -534,7 +527,7 @@ namespace BoughtItems.UI_Merge.ViewModel
                         var files = imageDir.GetFiles("*");
                         foreach (var file in files)
                         {
-                            dict.Add(file.Name, imageDir.Name);
+                            dict[file.Name] = imageDir.Name;
                         }
                     }
                 }
@@ -582,8 +575,23 @@ namespace BoughtItems.UI_Merge.ViewModel
                 writer.RenderEndTag(); //end body
                 writer.RenderEndTag(); //end HTML
             }
-
             File.WriteAllText(outputFile, stringWriter.ToString());
+
+            List<string> list = new List<string>();
+            const string TAB = "\t";
+
+            list.Add(string.Join(TAB, "No", "Item", "Quantity", "Actual Price", "Total Price", "Order", "Shop", "User"));
+            count = 0;
+            foreach (OrderInfo order in ListOrders)
+            {
+                foreach (ItemInfo item in order.ListItems)
+                {
+                    ++count;
+                    list.Add(string.Join(TAB, count, item.ItemName.Replace("\r", "").Replace("\n", "") + (item.ItemDetails.Length > 0 ? (" | " + item.ItemDetails) : ""), item.NumberOfItem, item.ActualPrice, item.ActualPrice * item.NumberOfItem, order.ID, order.ShopName, order.UserName));
+                }
+            }
+            string newPath = outputFile.Replace(Path.GetExtension(outputFile), "") + "_excel.txt";
+            File.WriteAllText(newPath, string.Join(Environment.NewLine, list));
         }
 
         private void ImportDatabase(string path)
@@ -620,7 +628,6 @@ namespace BoughtItems.UI_Merge.ViewModel
             int orderCount = orderDivs.Count;
             log.Info("Found number of order node div: " + orderCount);
 
-            List<OrderInfo> tempListOrder = new List<OrderInfo>();
             string username = string.Empty;
 
             log.Info("Find username");
@@ -634,9 +641,12 @@ namespace BoughtItems.UI_Merge.ViewModel
             //2021.08.18: Download images too
             WebClient wc = new WebClient();
             string imageFolderPath = Path.Combine(Path.GetDirectoryName(TxtDatabaseFile), IMAGE_FOLDER_NAME);
-            if (!Directory.Exists(imageFolderPath))
+            var di = Directory.CreateDirectory(imageFolderPath);
+            var listImageFileInfo = di.GetFiles("*.jpg", SearchOption.AllDirectories);
+            Dictionary<string, string> dictImages = new Dictionary<string, string>();
+            foreach (var fi in listImageFileInfo)
             {
-                Directory.CreateDirectory(imageFolderPath);
+                dictImages[fi.Name] = fi.FullName;
             }
 
             int currentIndex = 0;
@@ -666,8 +676,23 @@ namespace BoughtItems.UI_Merge.ViewModel
 
                 if (HashOrderID.Contains(order.ID))
                 {
-                    log.Info("This order is duplicated: " + order.ID);
-                    continue;
+                    //log.Info("This order is duplicated: " + order.ID);
+                    //continue;
+
+                    //2021.09.27: Override old order with new order from HTML
+                    log.Info("Override order: " + order.ID);
+                    int oldIndex = ListOrders.FindIndex(i => i.ID == order.ID);
+                    if (oldIndex >= 0)
+                    {
+                        lock (ListOrders)
+                        {
+                            ListOrders.RemoveAt(oldIndex);
+                        }
+                    }
+                    lock (HashOrderID)
+                    {
+                        _ = HashOrderID.Remove(order.ID);
+                    }
                 }
 
                 log.Info("Find order total price");
@@ -692,8 +717,14 @@ namespace BoughtItems.UI_Merge.ViewModel
                 {
                     order.ShopURL = node.GetAttributeValue<string>("href", NONE_TEXT);
                     log.Info("Found shop URL: " + order.ShopURL);
-                    long.TryParse(regexShopID.Match(order.ShopURL).Groups[1].Value, out order.ShopID);
-                    log.Info("Found shop ID: " + order.ShopID);
+                    if (long.TryParse(regexShopID.Match(order.ShopURL).Groups[1].Value, out order.ShopID))
+                    {
+                        log.Info("Found shop ID: " + order.ShopID);
+                    }
+                    else
+                    {
+                        log.Info("Cannot find shop ID as a number: " + order.ShopURL);
+                    }
                 }
 
                 log.Info("Get item nodes");
@@ -775,8 +806,14 @@ namespace BoughtItems.UI_Merge.ViewModel
                         if (node != null)
                         {
                             item.ImageURL = regexItemImageURL.Match(node.OuterHtml).Value.Trim();
+
+                            //find local image file before downloading
                             item.LocalImageName = item.ImageURL.Substring(item.ImageURL.LastIndexOf("/") + 1) + ".jpg";
-                            _ = DownloadImage(wc, item.ImageURL, Path.Combine(imageFolderPath, item.LocalImageName));
+                            if (!dictImages.TryGetValue(item.LocalImageName, out string localPath))
+                            {
+                                _ = DownloadImage(wc, item.ImageURL, Path.Combine(imageFolderPath, item.LocalImageName));
+                            }
+
                             log.Info("Found item image URL: " + item.ImageURL);
                         }
 
@@ -792,10 +829,16 @@ namespace BoughtItems.UI_Merge.ViewModel
                         log.Error("Cannot get item node", e2);
                     }
                 }
-                tempListOrder.Add(order);
-                HashOrderID.Add(order.ID);
+                lock (ListOrders)
+                {
+                    ListOrders.Add(order);
+                }
+                lock (HashOrderID)
+                {
+                    _ = HashOrderID.Add(order.ID);
+                }
             }
-            ListOrders.AddRange(tempListOrder);
+            ButtonMoveImages();
             log.Info("Complete parsing: " + path + " | Item count: " + ListOrders.Count);
         }
     }
