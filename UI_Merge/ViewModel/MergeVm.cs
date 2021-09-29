@@ -20,6 +20,7 @@ namespace BoughtItems.UI_Merge.ViewModel
     public class MergeVm : ViewModelBase
     {
         private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType.Name);
+        private static readonly LogController oldLog = LogController.Instance;
 
         public MergeVm()
         {
@@ -137,13 +138,15 @@ namespace BoughtItems.UI_Merge.ViewModel
 
         public void ButtonBrowseHTMLFiles()
         {
-            OpenFileDialog dialog = new OpenFileDialog();
-            dialog.Multiselect = true;
-            dialog.InitialDirectory = Utils.GetValidFolderPath(Properties.Settings.Default.LastHTMLDirectory);
-            dialog.Filter = "HTML Files|*.html;*.htm";
+            OpenFileDialog dialog = new OpenFileDialog
+            {
+                Multiselect = true,
+                InitialDirectory = Utils.GetValidFolderPath(Properties.Settings.Default.LastHTMLDirectory),
+                Filter = "HTML Files|*.html;*.htm"
+            };
             if ((bool)dialog.ShowDialog())
             {
-                string names = String.Join(FILENAME_SEPERATOR + "", dialog.FileNames);
+                string names = string.Join(FILENAME_SEPERATOR + "", dialog.FileNames);
                 string directory = Utils.GetValidFolderPath(dialog.FileNames[0]);
                 log.Info("Directory: " + directory + " | Selected: " + names);
                 TxtHTMLFiles = names;
@@ -154,9 +157,11 @@ namespace BoughtItems.UI_Merge.ViewModel
 
         public void ButtonBrowseDatabaseFile()
         {
-            OpenFileDialog dialog = new OpenFileDialog();
-            dialog.InitialDirectory = Utils.GetValidFolderPath(Properties.Settings.Default.LastDatabaseDirectory);
-            dialog.Filter = "JSON File|*.json";
+            OpenFileDialog dialog = new OpenFileDialog
+            {
+                InitialDirectory = Utils.GetValidFolderPath(Properties.Settings.Default.LastDatabaseDirectory),
+                Filter = "JSON File|*.json"
+            };
             if ((bool)dialog.ShowDialog())
             {
                 string directory = Utils.GetValidFolderPath(dialog.FileName);
@@ -181,15 +186,15 @@ namespace BoughtItems.UI_Merge.ViewModel
             if (taskMerge != null && taskMerge.Status.Equals(TaskStatus.Running))
             {
                 //task is running
-                log.Error("Current task is running.");
+                log.Info("Current task is running");
                 if (cts != null)
                 {
                     cts.Cancel();
-                    log.Debug("Request to cancel task");
+                    oldLog.Debug("Cancelling merge task");
                 }
                 else
                 {
-                    log.Error("Cannot request to cancel task");
+                    oldLog.Error("Cannot request to cancel task");
                 }
             }
             else
@@ -209,6 +214,7 @@ namespace BoughtItems.UI_Merge.ViewModel
                 try
                 {
                     IsTaskIdle = false;
+                    oldLog.Debug("Start merging");
                     taskMerge = Task.Run(() =>
                     {
                         if (IsUseDatabase)
@@ -227,26 +233,27 @@ namespace BoughtItems.UI_Merge.ViewModel
                                 }
                                 catch (Exception e1)
                                 {
-                                    log.Error("Cannot load data from file: " + files[i], e1);
+                                    oldLog.Error("Cannot load data from file: " + files[i]);
+                                    oldLog.Error(e1.ToString());
                                 }
                             }
                         }
                         ListOrders.Sort();
                         ListOrders.Reverse();
                         ButtonMoveImages();
-                        return 13;
+                        return 0;
                     });
                     _ = await taskMerge;
-                    log.Info("Task is completed. Number of orders: " + ListOrders.Count);
+                    oldLog.Debug("Task is completed. Number of orders: " + ListOrders.Count);
                 }
                 catch (OperationCanceledException)
                 {
-                    log.Debug("Operation is canceled");
+                    oldLog.Debug("Operation is canceled");
                 }
                 catch (Exception e1)
                 {
                     string s = e1.GetType().Name + ": " + (e1.Message ?? "No message");
-                    log.Debug("Exception " + s);
+                    oldLog.Error("Exception " + s);
                 }
                 finally
                 {
@@ -656,13 +663,14 @@ namespace BoughtItems.UI_Merge.ViewModel
                 {
                     cancelToken.ThrowIfCancellationRequested();
                 }
+                progressObject.Report(startProgress + (currentIndex * 100 / numberOfFile / orderCount));
+                ++currentIndex;
 
                 OrderInfo order = new OrderInfo
                 {
                     UserName = username
                 };
-                progressObject.Report(startProgress + (currentIndex * 100 / numberOfFile / orderCount));
-                ++currentIndex;
+
                 // ".//" + type + "[@class='" + nameClass + "']"
                 log.Info("Find order URL and ID");
                 node = orderDiv.SelectSingleNode(".//div[@class='" + "GuWdvd" + "']/a");
@@ -670,28 +678,9 @@ namespace BoughtItems.UI_Merge.ViewModel
                 {
                     order.OrderURL = node.GetAttributeValue<string>("href", NONE_TEXT).Trim();
                     log.Info("Found order URL: " + order.OrderURL);
-                    long.TryParse(regexOrderID.Match(order.OrderURL).Groups[1].Value, out order.ID);
-                    log.Info("Found order ID: " + order.ID);
-                }
-
-                if (HashOrderID.Contains(order.ID))
-                {
-                    //log.Info("This order is duplicated: " + order.ID);
-                    //continue;
-
-                    //2021.09.27: Override old order with new order from HTML
-                    log.Info("Override order: " + order.ID);
-                    int oldIndex = ListOrders.FindIndex(i => i.ID == order.ID);
-                    if (oldIndex >= 0)
+                    if (long.TryParse(regexOrderID.Match(order.OrderURL).Groups[1].Value, out order.ID))
                     {
-                        lock (ListOrders)
-                        {
-                            ListOrders.RemoveAt(oldIndex);
-                        }
-                    }
-                    lock (HashOrderID)
-                    {
-                        _ = HashOrderID.Remove(order.ID);
+                        log.Info("Found order ID: " + order.ID);
                     }
                 }
 
@@ -831,11 +820,25 @@ namespace BoughtItems.UI_Merge.ViewModel
                 }
                 lock (ListOrders)
                 {
+                    lock (HashOrderID)
+                    {
+                        if (HashOrderID.Add(order.ID))
+                        {
+                            //new order
+                        }
+                        else
+                        {
+                            //old order
+                            //2021.09.27: Override old order with new order from HTML
+                            log.Info("Override order: " + order.ID);
+                            int oldIndex = ListOrders.FindIndex(i => i.ID == order.ID);
+                            if (oldIndex >= 0)
+                            {
+                                ListOrders.RemoveAt(oldIndex);
+                            }
+                        }
+                    }
                     ListOrders.Add(order);
-                }
-                lock (HashOrderID)
-                {
-                    _ = HashOrderID.Add(order.ID);
                 }
             }
             ButtonMoveImages();
