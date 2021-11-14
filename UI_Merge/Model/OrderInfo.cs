@@ -31,12 +31,12 @@ namespace BoughtItems.UI_Merge.Model
 
         public int CompareTo(OrderInfo other)
         {
-            //if (this.UserName.Equals(other.UserName))
-            //{
-            //    return this.ID.CompareTo(other.ID);
-            //}
-            //return this.UserName.CompareTo(other.UserName);
-            return this.ID.CompareTo(other.ID);
+            return ID.CompareTo(other.ID);
+        }
+
+        public override string ToString()
+        {
+            return ID + " " + UserName + " " + TotalPrice;
         }
     }
 }

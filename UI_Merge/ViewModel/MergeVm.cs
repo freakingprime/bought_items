@@ -440,7 +440,10 @@ namespace BoughtItems.UI_Merge.ViewModel
                 string backupName = Path.GetFileNameWithoutExtension(name);
                 backupName = backupName + "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + Path.GetExtension(name);
                 backupName = Path.Combine(Path.GetDirectoryName(name), BACKUP_FOLDER, backupName);
-                File.Copy(name, backupName, true);
+                if (File.Exists(name))
+                {
+                    File.Copy(name, backupName, true);
+                }
 
                 CreateHTML(name);
 
@@ -514,7 +517,14 @@ namespace BoughtItems.UI_Merge.ViewModel
                 writer.WriteLine("<th width=\"150\">Image</th>");
                 writer.WriteLine("<th width=\"150\">Local Image</th>");
                 writer.WriteLine("<th>Item (" + ListOrders.Sum(i => i.ListItems.Count) + ") </th>");
-                writer.WriteLine("<th width=\"70\">Price (" + ListOrders.Sum(i => i.ListItems.Sum(j => j.ActualPrice * j.NumberOfItem)).ToString("N0") + ") </th>");
+
+                long superTotalActualPrice = ListOrders.Sum(i => i.ListItems.Sum(j => j.ActualPrice * j.NumberOfItem));
+                writer.WriteLine("<th width=\"70\">Price (" + superTotalActualPrice.ToString("N0") + ") </th>");
+
+                //2021.11.14: Add recuded money
+                long totalPaid = ListOrders.Sum(i => i.TotalPrice);
+                writer.WriteLine("<th width=\"70\">Paid (Saved " + (superTotalActualPrice - totalPaid).ToString("N0") + ") </th>");
+
                 writer.WriteLine("<th width=\"125\">Order (" + ListOrders.GroupBy(i => i.OrderURL).Select(group => group.First()).Count() + ") </th>");
                 writer.WriteLine("<th width=\"120\">Shop (" + ListOrders.GroupBy(i => i.ShopURL).Select(g => g.First()).Count() + ") </th>");
                 writer.WriteLine("<th width=\"120\">User</th>");
@@ -543,6 +553,7 @@ namespace BoughtItems.UI_Merge.ViewModel
 
                 foreach (OrderInfo order in ListOrders)
                 {
+                    long totalActualPrice = order.ListItems.Sum(i => i.ActualPrice * i.NumberOfItem);
                     foreach (ItemInfo item in order.ListItems)
                     {
                         writer.RenderBeginTag(HtmlTextWriterTag.Tr);
@@ -572,6 +583,7 @@ namespace BoughtItems.UI_Merge.ViewModel
                         writer.RenderEndTag(); //end td
 
                         writer.WriteLine("<td>" + string.Format("{0:n0}", item.ActualPrice) + "</td>");
+                        writer.WriteLine("<td>" + string.Format("{0:n0}", totalActualPrice == 0 ? item.ActualPrice : item.ActualPrice * order.TotalPrice / totalActualPrice) + "</td>");
                         writer.WriteLine(string.Format("<td><a href=\"{0}\" target=\"_blank\">{1}</a></td>", order.OrderURL, order.ID));
                         writer.WriteLine(string.Format("<td><a href=\"{0}\" target=\"_blank\">{1}</a></td>", order.ShopURL, order.ShopName));
                         writer.WriteLine("<td>" + order.UserName + "</td>");

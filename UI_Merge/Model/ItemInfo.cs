@@ -27,5 +27,10 @@ namespace BoughtItems.UI_Merge.Model
         public string LocalImageName = string.Empty;
 
         #endregion
+
+        public override string ToString()
+        {
+            return ItemName + " " + ActualPrice + " x" + NumberOfItem;
+        }
     }
 }
