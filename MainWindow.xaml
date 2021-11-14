@@ -16,7 +16,7 @@
         <merge:MergeView/>
         <GroupBox Header="Log">
             <StackPanel Orientation="Vertical">
-                <TextBox Name="TxtLog" IsReadOnly="True" VerticalScrollBarVisibility="Visible" TextWrapping="Wrap" Height="100"/>
+                <TextBox Name="TxtLog" IsReadOnly="True" VerticalScrollBarVisibility="Visible" TextWrapping="Wrap" Height="100" TextChanged="TxtLog_TextChanged"/>
             </StackPanel>
         </GroupBox>
     </StackPanel>

@@ -215,11 +215,13 @@ namespace BoughtItems.UI_Merge.ViewModel
                 {
                     IsTaskIdle = false;
                     oldLog.Debug("Start merging");
+                    int beforeCount = 0;
                     taskMerge = Task.Run(() =>
                     {
                         if (IsUseDatabase)
                         {
                             ImportDatabase(TxtDatabaseFile);
+                            beforeCount = ListOrders.Count;
                         }
                         string[] files = TxtHTMLFiles.Split(FILENAME_SEPERATOR);
                         for (int i = 0; i < files.Length; ++i)
@@ -244,7 +246,7 @@ namespace BoughtItems.UI_Merge.ViewModel
                         return 0;
                     });
                     _ = await taskMerge;
-                    oldLog.Debug("Task is completed. Number of orders: " + ListOrders.Count);
+                    oldLog.Debug("Task is completed. Number of orders: " + beforeCount + " -> " + ListOrders.Count + ", change: " + (ListOrders.Count - beforeCount));
                 }
                 catch (OperationCanceledException)
                 {
@@ -825,6 +827,12 @@ namespace BoughtItems.UI_Merge.ViewModel
                         if (HashOrderID.Add(order.ID))
                         {
                             //new order
+                            string mess = "Add new: " + order.ID + " " + order.UserName;
+                            if (order.ListItems.Count > 0)
+                            {
+                                mess += " (" + order.ListItems[0].ItemName + ", ...)";
+                            }
+                            oldLog.Debug(mess);
                         }
                         else
                         {

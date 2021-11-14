@@ -42,5 +42,10 @@ namespace BoughtItems
                 context = vm;
             }
         }
+
+        private void TxtLog_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            TxtLog.ScrollToEnd();
+        }
     }
 }
