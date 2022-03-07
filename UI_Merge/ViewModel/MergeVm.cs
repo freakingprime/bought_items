@@ -446,6 +446,9 @@ namespace BoughtItems.UI_Merge.ViewModel
                 }
 
                 CreateHTML(name);
+                string offlineHTMLName = name.Replace(".html", "_offline.html");
+                CreateOfflineHTML(offlineHTMLName);
+                oldLog.Debug("Exported to HTML file: " + name + " and " + offlineHTMLName);
 
                 //Save to database file
                 if (IsUseDatabase && File.Exists(TxtDatabaseFile))
@@ -481,6 +484,139 @@ namespace BoughtItems.UI_Merge.ViewModel
         }
 
         #endregion
+
+        private void CreateOfflineHTML(string outputFile)
+        {
+            StringWriter stringWriter = new StringWriter();
+            const int IMAGE_SIZE = 150;
+            int count = 0;
+            using (HtmlTextWriter writer = new HtmlTextWriter(stringWriter))
+            {
+                writer.RenderBeginTag(HtmlTextWriterTag.Html);
+
+                writer.RenderBeginTag(HtmlTextWriterTag.Head);
+
+                writer.AddAttribute("charset", "UTF-8");
+                writer.RenderBeginTag(HtmlTextWriterTag.Meta);
+                writer.RenderEndTag();
+
+                writer.RenderBeginTag(HtmlTextWriterTag.Style);
+                writer.WriteLine("img.item_image {width: " + IMAGE_SIZE + "px;height: " + IMAGE_SIZE + "px}");
+                writer.WriteLine("table {border-collapse: collapse; table-layout: fixed}");
+                writer.WriteLine("th, td {border: 1px solid black; padding: 5px; word-break: break-all; word-wrap: break-word; white-space: normal}");
+                writer.RenderEndTag();
+                writer.RenderEndTag();
+
+                writer.RenderBeginTag(HtmlTextWriterTag.Body);
+                writer.AddAttribute(HtmlTextWriterAttribute.Width, "1250");
+                writer.RenderBeginTag(HtmlTextWriterTag.Table);
+
+                writer.RenderBeginTag(HtmlTextWriterTag.Thead);
+
+                //check new git
+
+                writer.RenderBeginTag(HtmlTextWriterTag.Tr);
+                writer.WriteLine("<th width=\"40\">No</th>");
+                writer.WriteLine("<th width=\"150\">Local Image</th>");
+                writer.WriteLine("<th>Item (" + ListOrders.Sum(i => i.ListItems.Count) + ") </th>");
+
+                long superTotalActualPrice = ListOrders.Sum(i => i.ListItems.Sum(j => j.ActualPrice * j.NumberOfItem));
+                writer.WriteLine("<th width=\"70\">Price (" + superTotalActualPrice.ToString("N0") + ") </th>");
+
+                //2021.11.14: Add recuded money
+                long totalPaid = ListOrders.Sum(i => i.TotalPrice);
+                writer.WriteLine("<th width=\"70\">Paid (Saved " + (superTotalActualPrice - totalPaid).ToString("N0") + ") </th>");
+
+                writer.WriteLine("<th width=\"125\">Order (" + ListOrders.GroupBy(i => i.OrderURL).Select(group => group.First()).Count() + ") </th>");
+                writer.WriteLine("<th width=\"120\">Shop (" + ListOrders.GroupBy(i => i.ShopURL).Select(g => g.First()).Count() + ") </th>");
+                writer.WriteLine("<th width=\"120\">User</th>");
+                writer.RenderEndTag(); //end tr
+
+                writer.RenderEndTag(); //end thead
+
+                writer.RenderBeginTag(HtmlTextWriterTag.Tbody);
+                count = 0;
+
+                //create local file name database
+                Dictionary<string, string> dict = new Dictionary<string, string>();
+                DirectoryInfo di = new DirectoryInfo(Path.Combine(Path.GetDirectoryName(TxtDatabaseFile), IMAGE_FOLDER_NAME));
+                if (di.Exists)
+                {
+                    var subDirs = di.GetDirectories("*");
+                    foreach (var imageDir in subDirs)
+                    {
+                        var files = imageDir.GetFiles("*");
+                        foreach (var file in files)
+                        {
+                            dict[file.Name] = imageDir.Name;
+                        }
+                    }
+                }
+
+                foreach (OrderInfo order in ListOrders)
+                {
+                    long totalActualPrice = order.ListItems.Sum(i => i.ActualPrice * i.NumberOfItem);
+                    foreach (ItemInfo item in order.ListItems)
+                    {
+                        writer.RenderBeginTag(HtmlTextWriterTag.Tr);
+
+                        ++count;
+                        writer.WriteLine("<td>" + count + "</td>");
+                        if (!dict.TryGetValue(item.LocalImageName, out string subFolderName))
+                        {
+                            subFolderName = "";
+                        }
+                        string imageLocalPath = IMAGE_FOLDER_NAME + "/" + subFolderName + (subFolderName.Length > 0 ? "/" : "") + item.LocalImageName;
+                        imageLocalPath = Path.Combine(Path.GetDirectoryName(outputFile), imageLocalPath);
+                        writer.WriteLine(string.Format("<td><img class=\"item_image\" src=\"data:image/jpeg;base64,{0}\"/></td>", File.Exists(imageLocalPath) ? Convert.ToBase64String(File.ReadAllBytes(imageLocalPath)) : ""));
+
+                        //item content
+                        writer.RenderBeginTag(HtmlTextWriterTag.Td);
+                        writer.RenderBeginTag(HtmlTextWriterTag.Div);
+                        writer.WriteLine("<div class=\"item_name\">" + item.ItemName + "</div>");
+                        if (item.ItemDetails.Length > 0)
+                        {
+                            writer.WriteLine("<div class=\"item_details\">Loại: " + item.ItemDetails + "</div>");
+                        }
+                        if (item.NumberOfItem >= 2)
+                        {
+                            writer.WriteLine("<div class=\"item_details\">Số lượng: " + item.NumberOfItem + "</div>");
+                        }
+                        writer.RenderEndTag(); //end div
+                        writer.RenderEndTag(); //end td
+
+                        writer.WriteLine("<td>" + string.Format("{0:n0}", item.ActualPrice) + "</td>");
+                        writer.WriteLine("<td>" + string.Format("{0:n0}", totalActualPrice == 0 ? item.ActualPrice : item.ActualPrice * order.TotalPrice / totalActualPrice) + "</td>");
+                        writer.WriteLine(string.Format("<td><a href=\"{0}\" target=\"_blank\">{1}</a></td>", order.OrderURL, order.ID));
+                        writer.WriteLine(string.Format("<td><a href=\"{0}\" target=\"_blank\">{1}</a></td>", order.ShopURL, order.ShopName));
+                        writer.WriteLine("<td>" + order.UserName + "</td>");
+
+                        writer.RenderEndTag(); //end tr
+                    }
+                }
+                writer.RenderEndTag(); //end tbody
+                writer.RenderEndTag(); //end table
+                writer.RenderEndTag(); //end body
+                writer.RenderEndTag(); //end HTML
+            }
+            File.WriteAllText(outputFile, stringWriter.ToString());
+
+            List<string> list = new List<string>();
+            const string TAB = "\t";
+
+            list.Add(string.Join(TAB, "No", "Item", "Quantity", "Actual Price", "Total Price", "Order", "Shop", "User"));
+            count = 0;
+            foreach (OrderInfo order in ListOrders)
+            {
+                foreach (ItemInfo item in order.ListItems)
+                {
+                    ++count;
+                    list.Add(string.Join(TAB, count, item.ItemName.Replace("\r", "").Replace("\n", "") + (item.ItemDetails.Length > 0 ? (" | " + item.ItemDetails) : ""), item.NumberOfItem, item.ActualPrice, item.ActualPrice * item.NumberOfItem, order.ID, order.ShopName, order.UserName));
+                }
+            }
+            string newPath = outputFile.Replace(Path.GetExtension(outputFile), "") + "_excel.txt";
+            File.WriteAllText(newPath, string.Join(Environment.NewLine, list));
+        }
 
         private void CreateHTML(string outputFile)
         {
