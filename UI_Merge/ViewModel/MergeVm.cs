@@ -781,7 +781,7 @@ namespace BoughtItems.UI_Merge.ViewModel
             log.Info("HTML file is loaded: " + path);
 
             log.Info("Find wrapper div that contain all orders");
-            HtmlNodeCollection orderDivs = doc.DocumentNode.SelectNodes(GetNode("div", "--tO6n"));
+            HtmlNodeCollection orderDivs = doc.DocumentNode.SelectNodes(GetNode("div", "hiXKxx"));
             int orderCount = orderDivs.Count;
             log.Info("Found number of order node div: " + orderCount);
 
@@ -868,106 +868,106 @@ namespace BoughtItems.UI_Merge.ViewModel
 
                 log.Info("Get item nodes");
                 HtmlNodeCollection itemNodes = orderDiv.SelectNodes(GetNode("span", "x7nENX"));
-                if (itemNodes != null)
-                {
-                    log.Info("Item nodes count: " + itemNodes.Count);
-                }
-                else
+                if (itemNodes == null)
                 {
                     log.Error("Cannot get item node list");
                 }
-                foreach (var itemNode in itemNodes)
+                else
                 {
-                    if (cancelToken != null)
+                    log.Info("Item nodes count: " + itemNodes.Count);
+                    foreach (var itemNode in itemNodes)
                     {
-                        cancelToken.ThrowIfCancellationRequested();
-                    }
-
-                    try
-                    {
-                        ItemInfo item = new ItemInfo();
-
-                        log.Info("Find item name");
-                        node = itemNode.SelectSingleNode(GetNode("span", "x5GTyN"));
-                        if (node != null)
+                        if (cancelToken != null)
                         {
-                            item.ItemName = node.InnerText.Trim();
-                            log.Info("Found item name: " + item.ItemName);
+                            cancelToken.ThrowIfCancellationRequested();
                         }
-
-                        log.Info("Find item details");
-                        node = itemNode.SelectSingleNode(GetNode("div", "vb0b-P"));
-                        if (node != null)
+                        try
                         {
-                            item.ItemDetails = node.InnerText.Substring(node.InnerText.IndexOf(':') + 1).Trim();
-                            log.Info("Found item details: " + item.ItemDetails);
-                        }
+                            ItemInfo item = new ItemInfo();
 
-                        log.Info("Find item quantity");
-                        node = itemNode.SelectSingleNode(GetNode("div", "_3F1-5M"));
-                        if (node != null && long.TryParse(node.InnerText.Substring(node.InnerText.IndexOf('x') + 1).Trim(), out item.NumberOfItem))
-                        {
-                            log.Info("Found item quantily: " + item.NumberOfItem);
-                        }
-
-                        log.Info("Find actual price");
-                        node = itemNode.SelectSingleNode(GetNode("div", "_9UJGhr"));
-                        if (node != null)
-                        {
-                            HtmlNode subNode = node.SelectSingleNode(GetNode("span", "-x3Dqh OkfGBc"));
-                            if (subNode != null)
+                            log.Info("Find item name");
+                            node = itemNode.SelectSingleNode(GetNode("span", "x5GTyN"));
+                            if (node != null)
                             {
-                                item.ActualPrice = GetNumberFromString(subNode.InnerText);
-                                log.Info("Found actual price: " + item.ActualPrice);
-
-                                log.Info("Find original price");
-                                subNode = node.SelectSingleNode(GetNode("span", "j2En5+"));
-                                if (subNode != null)
-                                {
-                                    item.OriginalPrice = GetNumberFromString(subNode.InnerText);
-                                    log.Info("Found original price: " + item.OriginalPrice);
-                                }
+                                item.ItemName = node.InnerText.Trim();
+                                log.Info("Found item name: " + item.ItemName);
                             }
-                            else
+
+                            log.Info("Find item details");
+                            node = itemNode.SelectSingleNode(GetNode("div", "vb0b-P"));
+                            if (node != null)
                             {
-                                subNode = node.SelectSingleNode(".//span");
+                                item.ItemDetails = node.InnerText.Substring(node.InnerText.IndexOf(':') + 1).Trim();
+                                log.Info("Found item details: " + item.ItemDetails);
+                            }
+
+                            log.Info("Find item quantity");
+                            node = itemNode.SelectSingleNode(GetNode("div", "_3F1-5M"));
+                            if (node != null && long.TryParse(node.InnerText.Substring(node.InnerText.IndexOf('x') + 1).Trim(), out item.NumberOfItem))
+                            {
+                                log.Info("Found item quantily: " + item.NumberOfItem);
+                            }
+
+                            log.Info("Find actual price");
+                            node = itemNode.SelectSingleNode(GetNode("div", "_9UJGhr"));
+                            if (node != null)
+                            {
+                                HtmlNode subNode = node.SelectSingleNode(GetNode("span", "-x3Dqh OkfGBc"));
                                 if (subNode != null)
                                 {
                                     item.ActualPrice = GetNumberFromString(subNode.InnerText);
-                                    item.OriginalPrice = item.ActualPrice;
-                                    log.Info("There's only 1 price: " + item.ActualPrice);
+                                    log.Info("Found actual price: " + item.ActualPrice);
+
+                                    log.Info("Find original price");
+                                    subNode = node.SelectSingleNode(GetNode("span", "j2En5+"));
+                                    if (subNode != null)
+                                    {
+                                        item.OriginalPrice = GetNumberFromString(subNode.InnerText);
+                                        log.Info("Found original price: " + item.OriginalPrice);
+                                    }
+                                }
+                                else
+                                {
+                                    subNode = node.SelectSingleNode(".//span");
+                                    if (subNode != null)
+                                    {
+                                        item.ActualPrice = GetNumberFromString(subNode.InnerText);
+                                        item.OriginalPrice = item.ActualPrice;
+                                        log.Info("There's only 1 price: " + item.ActualPrice);
+                                    }
                                 }
                             }
-                        }
 
-                        log.Info("Find item image");
-                        node = itemNode.SelectSingleNode(GetNode("div", "shopee-image__content"));
-                        if (node != null)
-                        {
-                            item.ImageURL = regexItemImageURL.Match(node.OuterHtml).Value.Trim();
-
-                            //find local image file before downloading
-                            item.LocalImageName = item.ImageURL.Substring(item.ImageURL.LastIndexOf("/") + 1) + ".jpg";
-                            if (!dictImages.TryGetValue(item.LocalImageName, out string localPath))
+                            log.Info("Find item image");
+                            node = itemNode.SelectSingleNode(GetNode("div", "shopee-image__content"));
+                            if (node != null)
                             {
-                                _ = DownloadImage(wc, item.ImageURL, Path.Combine(imageFolderPath, item.LocalImageName));
+                                item.ImageURL = regexItemImageURL.Match(node.OuterHtml).Value.Trim();
+
+                                //find local image file before downloading
+                                item.LocalImageName = item.ImageURL.Substring(item.ImageURL.LastIndexOf("/") + 1) + ".jpg";
+                                if (!dictImages.TryGetValue(item.LocalImageName, out string localPath))
+                                {
+                                    _ = DownloadImage(wc, item.ImageURL, Path.Combine(imageFolderPath, item.LocalImageName));
+                                }
+
+                                log.Info("Found item image URL: " + item.ImageURL);
                             }
 
-                            log.Info("Found item image URL: " + item.ImageURL);
+                            log.Info("Add item to list");
+                            order.ListItems.Add(item);
                         }
-
-                        log.Info("Add item to list");
-                        order.ListItems.Add(item);
-                    }
-                    catch (NullReferenceException e1)
-                    {
-                        log.Error("Cannot get item node because of null pointer", e1);
-                    }
-                    catch (Exception e2)
-                    {
-                        log.Error("Cannot get item node", e2);
+                        catch (NullReferenceException e1)
+                        {
+                            log.Error("Cannot get item node because of null pointer", e1);
+                        }
+                        catch (Exception e2)
+                        {
+                            log.Error("Cannot get item node", e2);
+                        }
                     }
                 }
+
                 lock (ListOrders)
                 {
                     lock (HashOrderID)
