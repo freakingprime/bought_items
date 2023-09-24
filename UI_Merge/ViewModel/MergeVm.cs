@@ -96,7 +96,7 @@ namespace BoughtItems.UI_Merge.ViewModel
         //<div class="shopee-image__content" style="background-image: /*savepage-url=https://cf.shopee.vn/file/90796d245838a4ceb821252801ea3b4c_tn*/ var(--savepage-url-14);"><div class="shopee-image__content--blur"> </div></div>
 
         //2021.04.21: Add ) to ending character
-        private readonly Regex regexItemImageURL = new Regex(@"http[^*)]+");
+        private readonly Regex regexItemImageURL = new Regex(@"http[^*)""]+");
 
         public const char FILENAME_SEPERATOR = '\n';
 
@@ -867,7 +867,7 @@ namespace BoughtItems.UI_Merge.ViewModel
                 }
 
                 log.Info("Get item nodes");
-                HtmlNodeCollection itemNodes = orderDiv.SelectNodes(GetNode("span", "x7nENX"));
+                HtmlNodeCollection itemNodes = orderDiv.SelectNodes(GetNode("div", "x7nENX"));
                 if (itemNodes == null)
                 {
                     log.Error("Cannot get item node list");
@@ -939,7 +939,7 @@ namespace BoughtItems.UI_Merge.ViewModel
                             }
 
                             log.Info("Find item image");
-                            node = itemNode.SelectSingleNode(GetNode("div", "shopee-image__content"));
+                            node = itemNode.SelectSingleNode(GetNode("div", "aybVBK"));
                             if (node != null)
                             {
                                 item.ImageURL = regexItemImageURL.Match(node.OuterHtml).Value.Trim();
