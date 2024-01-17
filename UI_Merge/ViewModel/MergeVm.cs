@@ -26,6 +26,7 @@ namespace BoughtItems.UI_Merge.ViewModel
         {
             IsTaskIdle = true;
             DownloadButtonEnabled = true;
+            ButtonAutoLoad();
         }
 
         #region Bind properties
