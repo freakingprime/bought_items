@@ -411,14 +411,15 @@ namespace BoughtItems.UI_Merge.ViewModel
             string dirPath = Properties.Settings.Default.LastHTMLDirectory;
             if (Directory.Exists(dirPath))
             {
-                TxtHTMLFiles = string.Empty;
+                string paths = string.Empty;
                 foreach (var item in Directory.GetFiles(dirPath))
                 {
                     if (item.EndsWith("html"))
                     {
-                        TxtHTMLFiles += item + Environment.NewLine;
+                        paths += item + Environment.NewLine;
                     }
                 }
+                TxtHTMLFiles = paths.Trim();
             }
         }
 

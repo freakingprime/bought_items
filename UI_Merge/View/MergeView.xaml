@@ -71,7 +71,7 @@
                          Grid.Row="0"
                          Grid.Column="2"
                          TextWrapping="Wrap"
-                         Height="60"
+                         Height="100"
                          AcceptsReturn="True"
                          VerticalScrollBarVisibility="Visible"
                          Text="{Binding TxtHTMLFiles,UpdateSourceTrigger=PropertyChanged}"
