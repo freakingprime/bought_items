@@ -6,6 +6,7 @@ using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Data.SqlTypes;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -776,7 +777,7 @@ namespace BoughtItems.UI_Merge.ViewModel
             }
         }
 
-        private const string ORDER_DIV = "J632se"; //contain whole order
+        private const string ORDER_DIV = "YL_VlX"; //contain whole order
         private const string ORDER_URL_DIV = "LY5oll"; //contain link to order
         private const string ORDER_TOTAL_PRICE_DIV = "NWUSQP";
         private const string SHOP_NAME_DIV = "UDaMW3";
