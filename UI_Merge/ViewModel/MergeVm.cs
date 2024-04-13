@@ -781,7 +781,7 @@ namespace BoughtItems.UI_Merge.ViewModel
         private const string ORDER_URL_DIV = "LY5oll"; //contain link to order
         private const string ORDER_TOTAL_PRICE_DIV = "NWUSQP";
         private const string SHOP_NAME_DIV = "UDaMW3";
-        private const string SHOP_URL_A = "_7wKGws";
+        private const string SHOP_URL_A = "Mr26O7";
         private const string SINGLE_ITEM_DIV = "mZ1OWk";
         private const string ITEM_NAME_SPAN = "DWVWOJ";
         private const string ITEM_DETAIL_DIV = "rsautk";
