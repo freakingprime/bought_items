@@ -2,10 +2,10 @@
 <SettingsFile xmlns="http://schemas.microsoft.com/VisualStudio/2004/01/settings" CurrentProfile="(Default)" GeneratedClassNamespace="BoughtItems.Properties" GeneratedClassName="Settings">
   <Profiles />
   <Settings>
-    <Setting Name="TxtHTMLFiles" Type="System.String" Scope="User">
+    <Setting Name="HtmlFiles" Type="System.String" Scope="User">
       <Value Profile="(Default)" />
     </Setting>
-    <Setting Name="TxtDatabaseFile" Type="System.String" Scope="User">
+    <Setting Name="DatabasePath" Type="System.String" Scope="User">
       <Value Profile="(Default)" />
     </Setting>
     <Setting Name="LastHTMLDirectory" Type="System.String" Scope="User">

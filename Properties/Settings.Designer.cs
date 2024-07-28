@@ -12,7 +12,7 @@ namespace BoughtItems.Properties {
     
     
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.VisualStudio.Editors.SettingsDesigner.SettingsSingleFileGenerator", "17.8.0.0")]
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.VisualStudio.Editors.SettingsDesigner.SettingsSingleFileGenerator", "17.9.0.0")]
     internal sealed partial class Settings : global::System.Configuration.ApplicationSettingsBase {
         
         private static Settings defaultInstance = ((Settings)(global::System.Configuration.ApplicationSettingsBase.Synchronized(new Settings())));
@@ -26,24 +26,24 @@ namespace BoughtItems.Properties {
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("")]
-        public string TxtHTMLFiles {
+        public string HtmlFiles {
             get {
-                return ((string)(this["TxtHTMLFiles"]));
+                return ((string)(this["HtmlFiles"]));
             }
             set {
-                this["TxtHTMLFiles"] = value;
+                this["HtmlFiles"] = value;
             }
         }
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("")]
-        public string TxtDatabaseFile {
+        public string DatabasePath {
             get {
-                return ((string)(this["TxtDatabaseFile"]));
+                return ((string)(this["DatabasePath"]));
             }
             set {
-                this["TxtDatabaseFile"] = value;
+                this["DatabasePath"] = value;
             }
         }
         

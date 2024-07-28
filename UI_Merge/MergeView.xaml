@@ -65,8 +65,7 @@
                             Name="BtnAutoLoad"
                             Click="BtnAutoLoad_Click" />
                 </StackPanel>
-
-                <TextBox x:Name="TxtSelectedHTML"
+                <TextBox x:Name="TxtHtmlFiles"
                          Grid.Row="0"
                          Grid.Column="2"
                          TextWrapping="Wrap"
@@ -75,7 +74,6 @@
                          VerticalScrollBarVisibility="Visible"
                          Text="{Binding TxtHTMLFiles,UpdateSourceTrigger=PropertyChanged}"
                          TextChanged="TxtSelectedHTML_TextChanged" />
-
                 <TextBlock Text="Database File"
                            Grid.Row="1"
                            Grid.Column="0" />
@@ -87,7 +85,6 @@
                 <TextBox x:Name="TxtDatabaseFile"
                          Grid.Row="1"
                          Grid.Column="2"
-                         Text="{Binding TxtDatabaseFile,UpdateSourceTrigger=PropertyChanged}"
                          TextChanged="TxtDatabaseFile_TextChanged" />
             </Grid>
         </GroupBox>

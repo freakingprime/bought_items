@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.Win32;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -28,7 +29,7 @@ namespace BoughtItems.UI_Merge
             InitializeComponent();
             AssignDataContext();
 
-            string[] split = Properties.Settings.Default.TxtHTMLFiles.Split(MergeVm.FILENAME_SEPERATOR);
+            string[] split = Properties.Settings.Default.HtmlFiles.Split(MergeVm.FILENAME_SEPERATOR);
             string names = "";
             foreach (var item in split)
             {
@@ -38,14 +39,15 @@ namespace BoughtItems.UI_Merge
                 }
             }
             names = names.Trim();
-            TxtSelectedHTML.Text = names;
+            TxtHtmlFiles.Text = names;
 
-            if (File.Exists(Properties.Settings.Default.TxtDatabaseFile))
+            if (File.Exists(Properties.Settings.Default.DatabasePath))
             {
-                TxtDatabaseFile.Text = Properties.Settings.Default.TxtDatabaseFile;
+                TxtDatabaseFile.Text = Properties.Settings.Default.DatabasePath;
             }
 
             CheckboxUseDatabase.IsChecked = true;
+            BtnAutoLoad_Click(null, null);
         }
 
         private MergeVm context;
@@ -75,23 +77,50 @@ namespace BoughtItems.UI_Merge
 
         private void BtnBrowseHTMLFiles_Click(object sender, RoutedEventArgs e)
         {
-            context.ButtonBrowseHTMLFiles();
+            OpenFileDialog dialog = new OpenFileDialog
+            {
+                Multiselect = true,
+                InitialDirectory = Utils.GetValidFolderPath(Properties.Settings.Default.LastHTMLDirectory),
+                Filter = "HTML Files|*.html;*.htm"
+            };
+            if ((bool)dialog.ShowDialog())
+            {
+                string names = string.Join("\n", dialog.FileNames);
+                string directory = Utils.GetValidFolderPath(dialog.FileNames[0]);
+                log.Info("Directory: " + directory + " | Selected: " + names);
+                TxtHtmlFiles.Text = names;
+                Properties.Settings.Default.LastHTMLDirectory = directory;
+                Properties.Settings.Default.Save();
+            }
         }
 
         private void BtnBrowseDatabaseFile_Click(object sender, RoutedEventArgs e)
         {
-            context.ButtonBrowseDatabaseFile();
+            OpenFileDialog dialog = new OpenFileDialog
+            {
+                InitialDirectory = Utils.GetValidFolderPath(Properties.Settings.Default.LastDatabaseDirectory),
+                Filter = "JSON File|*.json"
+            };
+            if ((bool)dialog.ShowDialog())
+            {
+                string directory = Utils.GetValidFolderPath(dialog.FileName);
+                log.Info("Directory: " + directory + " | Selected: " + dialog.FileName);
+                TxtDatabaseFile.Text = dialog.FileName;
+                Properties.Settings.Default.LastDatabaseDirectory = directory;
+                Properties.Settings.Default.Save();
+            }
         }
 
         private void TxtSelectedHTML_TextChanged(object sender, TextChangedEventArgs e)
         {
-            Properties.Settings.Default.TxtHTMLFiles = TxtSelectedHTML.Text.Trim();
+            Properties.Settings.Default.HtmlFiles = ((TextBox)sender).Text.Trim();
             Properties.Settings.Default.Save();
         }
 
         private void TxtDatabaseFile_TextChanged(object sender, TextChangedEventArgs e)
         {
-            Properties.Settings.Default.TxtDatabaseFile = TxtDatabaseFile.Text.Trim();
+            Properties.Settings.Default.DatabasePath = ((TextBox)sender).Text.Trim();
+            Properties.Settings.Default.LastDatabaseDirectory = Utils.GetValidFolderPath(((TextBox)sender).Text.Trim());
             Properties.Settings.Default.Save();
         }
 
@@ -107,7 +136,19 @@ namespace BoughtItems.UI_Merge
 
         private void BtnAutoLoad_Click(object sender, RoutedEventArgs e)
         {
-            context.ButtonAutoLoad();
+            string dirPath = Properties.Settings.Default.LastHTMLDirectory;
+            if (Directory.Exists(dirPath))
+            {
+                string paths = string.Empty;
+                foreach (var item in Directory.GetFiles(dirPath))
+                {
+                    if (item.EndsWith("html"))
+                    {
+                        paths += item + Environment.NewLine;
+                    }
+                }
+                TxtHtmlFiles.Text = paths.Trim();
+            }
         }
 
         private void BtnDownloadImage_Click(object sender, RoutedEventArgs e)

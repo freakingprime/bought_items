@@ -15,6 +15,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Web.UI;
+using Windows.ApplicationModel.Appointments.DataProvider;
 
 namespace BoughtItems.UI_Merge
 {
@@ -27,26 +28,9 @@ namespace BoughtItems.UI_Merge
         {
             IsTaskIdle = true;
             DownloadButtonEnabled = true;
-            ButtonAutoLoad();
         }
 
         #region Bind properties
-
-        private string _txtHTMLFiles;
-
-        public string TxtHTMLFiles
-        {
-            get { return _txtHTMLFiles; }
-            set { SetValue(ref _txtHTMLFiles, value); }
-        }
-
-        private string _txtDatabaseFile;
-
-        public string TxtDatabaseFile
-        {
-            get { return _txtDatabaseFile; }
-            set { SetValue(ref _txtDatabaseFile, value); }
-        }
 
         private bool _isUseDatabase;
 
@@ -136,44 +120,6 @@ namespace BoughtItems.UI_Merge
             return result;
         }
 
-        #region Button commands
-
-        public void ButtonBrowseHTMLFiles()
-        {
-            OpenFileDialog dialog = new OpenFileDialog
-            {
-                Multiselect = true,
-                InitialDirectory = Utils.GetValidFolderPath(Properties.Settings.Default.LastHTMLDirectory),
-                Filter = "HTML Files|*.html;*.htm"
-            };
-            if ((bool)dialog.ShowDialog())
-            {
-                string names = string.Join(FILENAME_SEPERATOR + "", dialog.FileNames);
-                string directory = Utils.GetValidFolderPath(dialog.FileNames[0]);
-                log.Info("Directory: " + directory + " | Selected: " + names);
-                TxtHTMLFiles = names;
-                Properties.Settings.Default.LastHTMLDirectory = directory;
-                Properties.Settings.Default.Save();
-            }
-        }
-
-        public void ButtonBrowseDatabaseFile()
-        {
-            OpenFileDialog dialog = new OpenFileDialog
-            {
-                InitialDirectory = Utils.GetValidFolderPath(Properties.Settings.Default.LastDatabaseDirectory),
-                Filter = "JSON File|*.json"
-            };
-            if ((bool)dialog.ShowDialog())
-            {
-                string directory = Utils.GetValidFolderPath(dialog.FileName);
-                log.Info("Directory: " + directory + " | Selected: " + dialog.FileName);
-                TxtDatabaseFile = dialog.FileName;
-                Properties.Settings.Default.LastDatabaseDirectory = directory;
-                Properties.Settings.Default.Save();
-            }
-        }
-
         #region Async function
 
         private CancellationTokenSource cts;
@@ -222,10 +168,10 @@ namespace BoughtItems.UI_Merge
                     {
                         if (IsUseDatabase)
                         {
-                            ImportDatabase(TxtDatabaseFile);
+                            ImportDatabase(Properties.Settings.Default.DatabasePath);
                             beforeCount = ListOrders.Count;
                         }
-                        string[] files = TxtHTMLFiles.Split(FILENAME_SEPERATOR);
+                        string[] files = Properties.Settings.Default.HtmlFiles.Split(FILENAME_SEPERATOR);
                         for (int i = 0; i < files.Length; ++i)
                         {
                             files[i] = files[i].Trim();
@@ -270,7 +216,7 @@ namespace BoughtItems.UI_Merge
         public void ButtonMoveImages()
         {
             const int MAX_FILE = 200;
-            DirectoryInfo di = new DirectoryInfo(Path.Combine(Path.GetDirectoryName(TxtDatabaseFile), IMAGE_FOLDER_NAME));
+            DirectoryInfo di = new DirectoryInfo(Path.Combine(Properties.Settings.Default.LastDatabaseDirectory, IMAGE_FOLDER_NAME));
             if (!di.Exists)
             {
                 di.Create();
@@ -328,8 +274,8 @@ namespace BoughtItems.UI_Merge
 
         public async void ButtonDownloadImages()
         {
-            ImportDatabase(TxtDatabaseFile);
-            DirectoryInfo di = new DirectoryInfo(Path.Combine(Path.GetDirectoryName(TxtDatabaseFile), IMAGE_FOLDER_NAME));
+            ImportDatabase(Properties.Settings.Default.DatabasePath);
+            DirectoryInfo di = new DirectoryInfo(Path.Combine(Properties.Settings.Default.LastDatabaseDirectory, IMAGE_FOLDER_NAME));
             if (!di.Exists)
             {
                 di.Create();
@@ -406,23 +352,6 @@ namespace BoughtItems.UI_Merge
             return result;
         }
 
-        public void ButtonAutoLoad()
-        {
-            string dirPath = Properties.Settings.Default.LastHTMLDirectory;
-            if (Directory.Exists(dirPath))
-            {
-                string paths = string.Empty;
-                foreach (var item in Directory.GetFiles(dirPath))
-                {
-                    if (item.EndsWith("html"))
-                    {
-                        paths += item + Environment.NewLine;
-                    }
-                }
-                TxtHTMLFiles = paths.Trim();
-            }
-        }
-
         public void ButtonExportToHTML()
         {
             SaveFileDialog dialog = new SaveFileDialog();
@@ -454,16 +383,16 @@ namespace BoughtItems.UI_Merge
                 oldLog.Debug("Exported to HTML file: " + name + " and " + offlineHTMLName);
 
                 //Save to database file
-                if (IsUseDatabase && File.Exists(TxtDatabaseFile))
+                if (IsUseDatabase && File.Exists(Properties.Settings.Default.DatabasePath))
                 {
                     //backup JSON file
-                    backupName = Path.GetFileNameWithoutExtension(TxtDatabaseFile);
-                    backupName = backupName + "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + Path.GetExtension(TxtDatabaseFile);
-                    backupName = Path.Combine(Path.GetDirectoryName(TxtDatabaseFile), BACKUP_FOLDER, backupName);
-                    File.Copy(TxtDatabaseFile, backupName);
+                    backupName = Path.GetFileNameWithoutExtension(Properties.Settings.Default.DatabasePath);
+                    backupName = backupName + "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + Path.GetExtension(Properties.Settings.Default.DatabasePath);
+                    backupName = Path.Combine(Properties.Settings.Default.LastDatabaseDirectory, BACKUP_FOLDER, backupName);
+                    File.Copy(Properties.Settings.Default.DatabasePath, backupName);
 
                     ClearImageURLFromIllegalCharacters();
-                    File.WriteAllText(TxtDatabaseFile, JsonConvert.SerializeObject(ListOrders, Formatting.Indented));
+                    File.WriteAllText(Properties.Settings.Default.DatabasePath, JsonConvert.SerializeObject(ListOrders, Formatting.Indented));
                 }
             }
         }
@@ -485,8 +414,6 @@ namespace BoughtItems.UI_Merge
                 }
             }
         }
-
-        #endregion
 
         private void CreateOfflineHTML(string outputFile)
         {
@@ -542,7 +469,7 @@ namespace BoughtItems.UI_Merge
 
                 //create local file name database
                 Dictionary<string, string> dict = new Dictionary<string, string>();
-                DirectoryInfo di = new DirectoryInfo(Path.Combine(Path.GetDirectoryName(TxtDatabaseFile), IMAGE_FOLDER_NAME));
+                DirectoryInfo di = new DirectoryInfo(Path.Combine(Properties.Settings.Default.LastDatabaseDirectory, IMAGE_FOLDER_NAME));
                 if (di.Exists)
                 {
                     var subDirs = di.GetDirectories("*");
@@ -676,7 +603,7 @@ namespace BoughtItems.UI_Merge
 
                 //create local file name database
                 Dictionary<string, string> dict = new Dictionary<string, string>();
-                DirectoryInfo di = new DirectoryInfo(Path.Combine(Path.GetDirectoryName(TxtDatabaseFile), IMAGE_FOLDER_NAME));
+                DirectoryInfo di = new DirectoryInfo(Path.Combine(Properties.Settings.Default.LastDatabaseDirectory, IMAGE_FOLDER_NAME));
                 if (di.Exists)
                 {
                     var subDirs = di.GetDirectories("*");
@@ -814,7 +741,7 @@ namespace BoughtItems.UI_Merge
 
             //2021.08.18: Download images too
             WebClient wc = new WebClient();
-            string imageFolderPath = Path.Combine(Path.GetDirectoryName(TxtDatabaseFile), IMAGE_FOLDER_NAME);
+            string imageFolderPath = Path.Combine(Properties.Settings.Default.LastDatabaseDirectory, IMAGE_FOLDER_NAME);
             var di = Directory.CreateDirectory(imageFolderPath);
             var listImageFileInfo = di.GetFiles("*.jpg", SearchOption.AllDirectories);
             Dictionary<string, string> dictImages = new Dictionary<string, string>();
@@ -826,10 +753,7 @@ namespace BoughtItems.UI_Merge
             int currentIndex = 0;
             foreach (HtmlNode orderDiv in orderDivs)
             {
-                if (cancelToken != null)
-                {
-                    cancelToken.ThrowIfCancellationRequested();
-                }
+                cancelToken.ThrowIfCancellationRequested();
                 progressObject.Report(startProgress + (currentIndex * 100 / numberOfFile / orderCount));
                 ++currentIndex;
 
@@ -894,10 +818,7 @@ namespace BoughtItems.UI_Merge
                     log.Info("Item nodes count: " + itemNodes.Count);
                     foreach (var itemNode in itemNodes)
                     {
-                        if (cancelToken != null)
-                        {
-                            cancelToken.ThrowIfCancellationRequested();
-                        }
+                        cancelToken.ThrowIfCancellationRequested();
                         try
                         {
                             ItemInfo item = new ItemInfo();
