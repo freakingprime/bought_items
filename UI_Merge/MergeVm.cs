@@ -1,5 +1,4 @@
 ﻿using BoughtItems.MVVMBase;
-using BoughtItems.UI_Merge.Model;
 using HtmlAgilityPack;
 using Microsoft.Win32;
 using Newtonsoft.Json;
@@ -17,7 +16,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Web.UI;
 
-namespace BoughtItems.UI_Merge.ViewModel
+namespace BoughtItems.UI_Merge
 {
     public class MergeVm : ViewModelBase
     {

@@ -100,16 +100,16 @@
       <SubType>Designer</SubType>
     </ApplicationDefinition>
     <Compile Include="LogController.cs" />
-    <Compile Include="UI_MainWindow\ViewModel\MainWindowVm.cs" />
-    <Compile Include="UI_Merge\Model\ImageInfo.cs" />
-    <Compile Include="UI_Merge\Model\ItemInfo.cs" />
-    <Compile Include="UI_Merge\Model\OrderInfo.cs" />
-    <Compile Include="UI_Merge\ViewModel\MergeVm.cs" />
-    <Compile Include="UI_Merge\View\MergeView.xaml.cs">
+    <Compile Include="UI_MainWindow\MainWindowVm.cs" />
+    <Compile Include="UI_Merge\ImageInfo.cs" />
+    <Compile Include="UI_Merge\ItemInfo.cs" />
+    <Compile Include="UI_Merge\OrderInfo.cs" />
+    <Compile Include="UI_Merge\MergeVm.cs" />
+    <Compile Include="UI_Merge\MergeView.xaml.cs">
       <DependentUpon>MergeView.xaml</DependentUpon>
     </Compile>
-    <Compile Include="UI_Template\ViewModel\TemplateVm.cs" />
-    <Compile Include="UI_Template\View\TemplateView.xaml.cs">
+    <Compile Include="UI_Template\TemplateVm.cs" />
+    <Compile Include="UI_Template\TemplateView.xaml.cs">
       <DependentUpon>TemplateView.xaml</DependentUpon>
     </Compile>
     <Compile Include="Utils.cs" />
@@ -125,11 +125,11 @@
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
-    <Page Include="UI_Merge\View\MergeView.xaml">
+    <Page Include="UI_Merge\MergeView.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="UI_Template\View\TemplateView.xaml">
+    <Page Include="UI_Template\TemplateView.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -187,11 +187,7 @@
   <ItemGroup>
     <None Include="BuildTime.txt" />
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="UI_MainWindow\Model\" />
-    <Folder Include="UI_MainWindow\View\" />
-    <Folder Include="UI_Template\Model\" />
-  </ItemGroup>
+  <ItemGroup />
   <ItemGroup>
     <Resource Include="icon.ico" />
   </ItemGroup>

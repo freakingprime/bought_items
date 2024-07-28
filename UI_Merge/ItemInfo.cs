@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace BoughtItems.UI_Merge.Model
+namespace BoughtItems.UI_Merge
 {
     public class ItemInfo
     {

@@ -4,8 +4,8 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:BoughtItems"
-        xmlns:vm="clr-namespace:BoughtItems.UI_MainWindow.ViewModel"
-        xmlns:merge="clr-namespace:BoughtItems.UI_Merge.View"
+        xmlns:vm="clr-namespace:BoughtItems.UI_MainWindow"
+        xmlns:merge="clr-namespace:BoughtItems.UI_Merge"
         mc:Ignorable="d"
         DataContextChanged="Window_DataContextChanged"
         Title="MainWindow" Height="450" Width="800">

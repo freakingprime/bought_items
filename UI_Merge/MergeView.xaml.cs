@@ -1,5 +1,4 @@
-﻿using BoughtItems.UI_Merge.ViewModel;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -15,7 +14,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 
-namespace BoughtItems.UI_Merge.View
+namespace BoughtItems.UI_Merge
 {
     /// <summary>
     /// Interaction logic for MergeView.xaml

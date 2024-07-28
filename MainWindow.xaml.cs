@@ -1,4 +1,4 @@
-﻿using BoughtItems.UI_MainWindow.ViewModel;
+﻿using BoughtItems.UI_MainWindow;
 using HtmlAgilityPack;
 using System;
 using System.Collections.Generic;

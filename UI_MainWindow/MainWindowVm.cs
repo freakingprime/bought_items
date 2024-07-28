@@ -5,15 +5,15 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace BoughtItems.UI_Template.ViewModel
+namespace BoughtItems.UI_MainWindow
 {
-    public class TemplateVm : ViewModelBase
+    public class MainWindowVm : ViewModelBase
     {
         private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType.Name);
-        public TemplateVm()
+
+        public MainWindowVm()
         {
-
+            log.Info("MainWindowVm is created");
         }
-
     }
 }
