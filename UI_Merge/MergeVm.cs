@@ -1,11 +1,14 @@
 ﻿using BoughtItems.MVVMBase;
+using Dapper;
 using HtmlAgilityPack;
+using Microsoft.Data.Sqlite;
 using Microsoft.Win32;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data.SqlTypes;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -15,7 +18,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Web.UI;
-using Windows.ApplicationModel.Appointments.DataProvider;
+using System.Windows.Media.Animation;
 
 namespace BoughtItems.UI_Merge
 {
@@ -690,10 +693,9 @@ namespace BoughtItems.UI_Merge
                 HashOrderID.Clear();
                 foreach (OrderInfo order in temp)
                 {
-                    if (!HashOrderID.Contains(order.ID))
+                    if (HashOrderID.Add(order.ID))
                     {
                         ListOrders.Add(order);
-                        HashOrderID.Add(order.ID);
                     }
                 }
             }
@@ -937,6 +939,46 @@ namespace BoughtItems.UI_Merge
             }
             ButtonMoveImages();
             log.Info("Complete parsing: " + path + " | Item count: " + ListOrders.Count);
+        }
+
+        internal void ButtonInitDatabase(List<OrderInfo> list)
+        {
+            Stopwatch sw = Stopwatch.StartNew();
+            ImportDatabase(Properties.Settings.Default.DatabasePath);
+            int orderRow = 0;
+            int itemRow = 0;
+            int orderItemRow = 0;
+            using (var connection = new SqliteConnection("Data Source=\"" + GetDatabasePath() + "\""))
+            {
+                connection.Open();
+                var transaction = connection.BeginTransaction();
+                foreach (var order in list)
+                {
+                    orderRow += connection.Execute(@"INSERT OR IGNORE INTO orderpee (ID,URL,TotalPrice,UserName,ShopName,ShopURL) VALUES (@ID,@URL,@TotalPrice,@UserName,@ShopName,@ShopURL)", new { order.ID, URL = order.OrderURL, TotalPrice = (int)order.TotalPrice, order.UserName, order.ShopName, order.ShopURL });
+                    foreach (var item in order.ListItems)
+                    {
+                        itemRow += connection.Execute(@"INSERT OR IGNORE INTO item (Name,Detail,ImageURL) VALUES (@ItemName,@ItemDetails,@ImageURL)", new { item.ItemName, item.ItemDetails, item.ImageURL });
+                    }
+                }
+                transaction.Commit();
+                transaction = connection.BeginTransaction();
+                foreach (var order in list)
+                {
+                    foreach (var item in order.ListItems)
+                    {
+                        int ItemID = connection.QuerySingle<int>(@"SELECT ID FROM item WHERE Name=@ItemName AND Detail=@ItemDetails AND ImageURL=@ImageURL", new { item.ItemName, item.ItemDetails, item.ImageURL });
+                        orderItemRow += connection.Execute(@"INSERT OR IGNORE INTO order_item (OrderID,ItemID,ActualPrice,OriginalPrice,Quantity) VALUES (@OrderID,@ItemID,@ActualPrice,@OriginalPrice,@NumberOfItem)", new { OrderID = order.ID, ItemID, item.ActualPrice, item.OriginalPrice, item.NumberOfItem });
+                    }
+                }
+                transaction.Commit();
+            }
+            sw.Stop();
+            oldLog.Debug("Insert " + orderRow + " order and " + itemRow + " item and " + orderItemRow + " connection to DB in: " + sw.ElapsedMilliseconds + " ms");
+        }
+
+        private string GetDatabasePath()
+        {
+            return @"D:\DOWNLOADED\shopee.db";
         }
     }
 }

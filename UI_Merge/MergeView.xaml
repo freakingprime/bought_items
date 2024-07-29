@@ -121,6 +121,9 @@
                     <Button x:Name="BtnExportToHTML"
                             Content="Export to HTML and database file"
                             Click="BtnExportToHTML_Click" />
+                    <Button x:Name="BtnInitDatabase"
+                            Content="Init Database"
+                            Click="BtnInitDatabase_Click" />
                 </StackPanel>
                 <StackPanel Orientation="Horizontal"
                             Name="StackDebug">

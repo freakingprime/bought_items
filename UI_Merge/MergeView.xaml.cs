@@ -160,5 +160,10 @@ namespace BoughtItems.UI_Merge
         {
             context.ButtonMoveImages();
         }
+
+        private void BtnInitDatabase_Click(object sender, RoutedEventArgs e)
+        {
+            context?.ButtonInitDatabase();
+        }
     }
 }
