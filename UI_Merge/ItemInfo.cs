@@ -28,6 +28,14 @@ namespace BoughtItems.UI_Merge
 
         #endregion
 
+        public bool IsValid
+        {
+            get
+            {
+                return ItemName.Length > 0 || ItemDetails.Length > 0 || ImageURL.Length > 0;
+            }
+        }
+
         public override string ToString()
         {
             return ItemName + " " + ActualPrice + " x" + NumberOfItem;

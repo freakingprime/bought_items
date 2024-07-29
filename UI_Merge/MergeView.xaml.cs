@@ -80,7 +80,7 @@ namespace BoughtItems.UI_Merge
             OpenFileDialog dialog = new OpenFileDialog
             {
                 Multiselect = true,
-                InitialDirectory = Utils.GetValidFolderPath(Properties.Settings.Default.LastHTMLDirectory),
+                InitialDirectory = Utils.GetValidFolderPath(Properties.Settings.Default.HtmlDirectory),
                 Filter = "HTML Files|*.html;*.htm"
             };
             if ((bool)dialog.ShowDialog())
@@ -89,7 +89,7 @@ namespace BoughtItems.UI_Merge
                 string directory = Utils.GetValidFolderPath(dialog.FileNames[0]);
                 log.Info("Directory: " + directory + " | Selected: " + names);
                 TxtHtmlFiles.Text = names;
-                Properties.Settings.Default.LastHTMLDirectory = directory;
+                Properties.Settings.Default.HtmlDirectory = directory;
                 Properties.Settings.Default.Save();
             }
         }
@@ -98,7 +98,7 @@ namespace BoughtItems.UI_Merge
         {
             OpenFileDialog dialog = new OpenFileDialog
             {
-                InitialDirectory = Utils.GetValidFolderPath(Properties.Settings.Default.LastDatabaseDirectory),
+                InitialDirectory = Utils.GetValidFolderPath(Properties.Settings.Default.DatabaseDirectory),
                 Filter = "JSON File|*.json"
             };
             if ((bool)dialog.ShowDialog())
@@ -106,7 +106,7 @@ namespace BoughtItems.UI_Merge
                 string directory = Utils.GetValidFolderPath(dialog.FileName);
                 log.Info("Directory: " + directory + " | Selected: " + dialog.FileName);
                 TxtDatabaseFile.Text = dialog.FileName;
-                Properties.Settings.Default.LastDatabaseDirectory = directory;
+                Properties.Settings.Default.DatabaseDirectory = directory;
                 Properties.Settings.Default.Save();
             }
         }
@@ -120,7 +120,7 @@ namespace BoughtItems.UI_Merge
         private void TxtDatabaseFile_TextChanged(object sender, TextChangedEventArgs e)
         {
             Properties.Settings.Default.DatabasePath = ((TextBox)sender).Text.Trim();
-            Properties.Settings.Default.LastDatabaseDirectory = Utils.GetValidFolderPath(((TextBox)sender).Text.Trim());
+            Properties.Settings.Default.DatabaseDirectory = Utils.GetValidFolderPath(((TextBox)sender).Text.Trim());
             Properties.Settings.Default.Save();
         }
 
@@ -136,7 +136,7 @@ namespace BoughtItems.UI_Merge
 
         private void BtnAutoLoad_Click(object sender, RoutedEventArgs e)
         {
-            string dirPath = Properties.Settings.Default.LastHTMLDirectory;
+            string dirPath = Properties.Settings.Default.HtmlDirectory;
             if (Directory.Exists(dirPath))
             {
                 string paths = string.Empty;

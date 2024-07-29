@@ -50,24 +50,24 @@ namespace BoughtItems.Properties {
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("")]
-        public string LastHTMLDirectory {
+        public string HtmlDirectory {
             get {
-                return ((string)(this["LastHTMLDirectory"]));
+                return ((string)(this["HtmlDirectory"]));
             }
             set {
-                this["LastHTMLDirectory"] = value;
+                this["HtmlDirectory"] = value;
             }
         }
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("")]
-        public string LastDatabaseDirectory {
+        public string DatabaseDirectory {
             get {
-                return ((string)(this["LastDatabaseDirectory"]));
+                return ((string)(this["DatabaseDirectory"]));
             }
             set {
-                this["LastDatabaseDirectory"] = value;
+                this["DatabaseDirectory"] = value;
             }
         }
         

@@ -5,6 +5,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.Win32;
 using Newtonsoft.Json;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data.SqlTypes;
@@ -12,6 +13,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -51,12 +53,12 @@ namespace BoughtItems.UI_Merge
             set { SetValue(ref _progressValue, value); }
         }
 
-        private bool _isWorkerIdle;
+        private bool _isTaskIdle;
 
         public bool IsTaskIdle
         {
-            get { return _isWorkerIdle; }
-            set { SetValue(ref _isWorkerIdle, value); }
+            get { return _isTaskIdle; }
+            set { SetValue(ref _isTaskIdle, value); }
         }
 
         private bool _downloadButtonEnabled;
@@ -125,101 +127,67 @@ namespace BoughtItems.UI_Merge
 
         #region Async function
 
-        private CancellationTokenSource cts;
-        private CancellationToken cancelToken;
-        private IProgress<int> progressObject;
-        private Task<int> taskMerge;
+        private CancellationTokenSource _cts;
+        private CancellationToken _cancelToken;
+        private IProgress<KeyValuePair<int, string>> _progressObject = new Progress<KeyValuePair<int, string>>(p =>
+        {
+            oldLog.SetValueProgress(p.Key, p.Value);
+        });
 
         #endregion
 
         public async void ButtonMerge()
         {
-            if (taskMerge != null && taskMerge.Status.Equals(TaskStatus.Running))
+            if (!IsTaskIdle)
             {
                 //task is running
-                log.Info("Current task is running");
-                if (cts != null)
-                {
-                    cts.Cancel();
-                    oldLog.Debug("Cancelling merge task");
-                }
-                else
-                {
-                    oldLog.Error("Cannot request to cancel task");
-                }
+                oldLog.Debug("Current task is running");
+                return;
             }
-            else
+            //task is not running
+            //declare cancellation token
+            _cts = new CancellationTokenSource();
+            _cancelToken = _cts.Token;
+            IsTaskIdle = false;
+            ConcurrentBag<OrderInfo> bagOrder = new ConcurrentBag<OrderInfo>();
+            string[] files = Properties.Settings.Default.HtmlFiles.Split(FILENAME_SEPERATOR);
+            await Parallel.ForEachAsync(files, (path, ct) =>
             {
-                //task is not running
 
-                //declare cancellation token
-                cts = new CancellationTokenSource();
-                cancelToken = cts.Token;
+            });
 
-                //handle progress report
-                progressObject = new Progress<int>(value =>
+            await Task.Run(() =>
+            {
+                string[] files = Properties.Settings.Default.HtmlFiles.Split(FILENAME_SEPERATOR);
+                for (int i = 0; i < files.Length; ++i)
                 {
-                    ProgressValue = value;
-                });
-
-                try
-                {
-                    IsTaskIdle = false;
-                    oldLog.Debug("Start merging");
-                    int beforeCount = 0;
-                    taskMerge = Task.Run(() =>
+                    files[i] = files[i].Trim();
+                    if (File.Exists(files[i]))
                     {
-                        if (IsUseDatabase)
+                        try
                         {
-                            ImportDatabase(Properties.Settings.Default.DatabasePath);
-                            beforeCount = ListOrders.Count;
-                        }
-                        string[] files = Properties.Settings.Default.HtmlFiles.Split(FILENAME_SEPERATOR);
-                        for (int i = 0; i < files.Length; ++i)
-                        {
-                            files[i] = files[i].Trim();
-                            if (File.Exists(files[i]))
+                            var ret = LoadDataFromFile(files[i], i, files.Length);
+                            foreach (var item in ret)
                             {
-                                try
-                                {
-                                    LoadDataFromFile(files[i], i, files.Length);
-                                }
-                                catch (Exception e1)
-                                {
-                                    oldLog.Error("Cannot load data from file: " + files[i]);
-                                    oldLog.Error(e1.ToString());
-                                }
+                                bagOrder.Add(item);
                             }
                         }
-                        ListOrders.Sort();
-                        ListOrders.Reverse();
-                        ButtonMoveImages();
-                        return 0;
-                    });
-                    _ = await taskMerge;
-                    oldLog.Debug("Task is completed. Number of orders: " + beforeCount + " -> " + ListOrders.Count + ", change: " + (ListOrders.Count - beforeCount));
+                        catch (Exception e1)
+                        {
+                            oldLog.Error("Cannot load data from file: " + files[i], e1);
+                        }
+                    }
                 }
-                catch (OperationCanceledException)
-                {
-                    oldLog.Debug("Operation is canceled");
-                }
-                catch (Exception e1)
-                {
-                    string s = e1.GetType().Name + ": " + (e1.Message ?? "No message");
-                    oldLog.Error("Exception " + s);
-                }
-                finally
-                {
-                    ProgressValue = 0;
-                    IsTaskIdle = true;
-                }
-            }
+            });
+            oldLog.Debug("Task is completed. Number of orders: " + bagOrder.Count);
+            oldLog.SetValueProgress(0);
+            IsTaskIdle = true;
         }
 
         public void ButtonMoveImages()
         {
             const int MAX_FILE = 200;
-            DirectoryInfo di = new DirectoryInfo(Path.Combine(Properties.Settings.Default.LastDatabaseDirectory, IMAGE_FOLDER_NAME));
+            DirectoryInfo di = new DirectoryInfo(Path.Combine(Properties.Settings.Default.DatabaseDirectory, IMAGE_FOLDER_NAME));
             if (!di.Exists)
             {
                 di.Create();
@@ -278,7 +246,7 @@ namespace BoughtItems.UI_Merge
         public async void ButtonDownloadImages()
         {
             ImportDatabase(Properties.Settings.Default.DatabasePath);
-            DirectoryInfo di = new DirectoryInfo(Path.Combine(Properties.Settings.Default.LastDatabaseDirectory, IMAGE_FOLDER_NAME));
+            DirectoryInfo di = new DirectoryInfo(Path.Combine(Properties.Settings.Default.DatabaseDirectory, IMAGE_FOLDER_NAME));
             if (!di.Exists)
             {
                 di.Create();
@@ -369,7 +337,7 @@ namespace BoughtItems.UI_Merge
                 Properties.Settings.Default.Save();
 
                 const string BACKUP_FOLDER = "backup";
-                _ = Directory.CreateDirectory(Path.Combine(directory, BACKUP_FOLDER));
+                //_cts = Directory.CreateDirectory(Path.Combine(directory, BACKUP_FOLDER));
 
                 //backup HTML file
                 string backupName = Path.GetFileNameWithoutExtension(name);
@@ -391,7 +359,7 @@ namespace BoughtItems.UI_Merge
                     //backup JSON file
                     backupName = Path.GetFileNameWithoutExtension(Properties.Settings.Default.DatabasePath);
                     backupName = backupName + "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + Path.GetExtension(Properties.Settings.Default.DatabasePath);
-                    backupName = Path.Combine(Properties.Settings.Default.LastDatabaseDirectory, BACKUP_FOLDER, backupName);
+                    backupName = Path.Combine(Properties.Settings.Default.DatabaseDirectory, BACKUP_FOLDER, backupName);
                     File.Copy(Properties.Settings.Default.DatabasePath, backupName);
 
                     ClearImageURLFromIllegalCharacters();
@@ -472,7 +440,7 @@ namespace BoughtItems.UI_Merge
 
                 //create local file name database
                 Dictionary<string, string> dict = new Dictionary<string, string>();
-                DirectoryInfo di = new DirectoryInfo(Path.Combine(Properties.Settings.Default.LastDatabaseDirectory, IMAGE_FOLDER_NAME));
+                DirectoryInfo di = new DirectoryInfo(Path.Combine(Properties.Settings.Default.DatabaseDirectory, IMAGE_FOLDER_NAME));
                 if (di.Exists)
                 {
                     var subDirs = di.GetDirectories("*");
@@ -606,7 +574,7 @@ namespace BoughtItems.UI_Merge
 
                 //create local file name database
                 Dictionary<string, string> dict = new Dictionary<string, string>();
-                DirectoryInfo di = new DirectoryInfo(Path.Combine(Properties.Settings.Default.LastDatabaseDirectory, IMAGE_FOLDER_NAME));
+                DirectoryInfo di = new DirectoryInfo(Path.Combine(Properties.Settings.Default.DatabaseDirectory, IMAGE_FOLDER_NAME));
                 if (di.Exists)
                 {
                     var subDirs = di.GetDirectories("*");
@@ -719,9 +687,9 @@ namespace BoughtItems.UI_Merge
         private const string ORIGINAL_PRICE_SPAN = "q6Gzj5";
         private const string IMAGE_DIV = "dJaa92";
 
-        private void LoadDataFromFile(string path, int currentFile, int numberOfFile)
+        private List<OrderInfo> LoadDataFromFile(string path, int currentFile, int numberOfFile)
         {
-            int startProgress = currentFile * 100 / numberOfFile;
+            List<OrderInfo> ret = new List<OrderInfo>();
             var doc = new HtmlDocument();
             doc.Load(path);
             log.Info("HTML file is loaded: " + path);
@@ -742,21 +710,24 @@ namespace BoughtItems.UI_Merge
             }
 
             //2021.08.18: Download images too
-            WebClient wc = new WebClient();
-            string imageFolderPath = Path.Combine(Properties.Settings.Default.LastDatabaseDirectory, IMAGE_FOLDER_NAME);
-            var di = Directory.CreateDirectory(imageFolderPath);
-            var listImageFileInfo = di.GetFiles("*.jpg", SearchOption.AllDirectories);
-            Dictionary<string, string> dictImages = new Dictionary<string, string>();
-            foreach (var fi in listImageFileInfo)
+            HttpClient wc = new HttpClient();
+            string imageFolderPath = Path.Combine(Properties.Settings.Default.DatabaseDirectory, Properties.Resources.TEMP_IMAGE_FOLDER);
+            var di = new DirectoryInfo(imageFolderPath);
+            try
             {
-                dictImages[fi.Name] = fi.FullName;
+                if (di.Exists)
+                {
+                    di.Delete(true);
+                }
+                di.Create();
             }
-
+            catch (Exception e1)
+            {
+                oldLog.Error("Cannot create temporary folder at: " + di.FullName, e1);
+            }
             int currentIndex = 0;
             foreach (HtmlNode orderDiv in orderDivs)
             {
-                cancelToken.ThrowIfCancellationRequested();
-                progressObject.Report(startProgress + (currentIndex * 100 / numberOfFile / orderCount));
                 ++currentIndex;
 
                 OrderInfo order = new OrderInfo
@@ -820,7 +791,6 @@ namespace BoughtItems.UI_Merge
                     log.Info("Item nodes count: " + itemNodes.Count);
                     foreach (var itemNode in itemNodes)
                     {
-                        cancelToken.ThrowIfCancellationRequested();
                         try
                         {
                             ItemInfo item = new ItemInfo();
@@ -880,17 +850,15 @@ namespace BoughtItems.UI_Merge
 
                             log.Info("Find item image");
                             node = itemNode.SelectSingleNode(GetNode("div", IMAGE_DIV));
-                            if (node != null)
+                            if (node != null && regexItemImageURL.IsMatch(node.OuterHtml))
                             {
                                 item.ImageURL = regexItemImageURL.Match(node.OuterHtml).Value.Trim();
-
-                                //find local image file before downloading
-                                item.LocalImageName = item.ImageURL.Substring(item.ImageURL.LastIndexOf("/") + 1) + ".jpg";
-                                if (!dictImages.TryGetValue(item.LocalImageName, out string localPath))
+                                string imageName = item.ImageURL.Substring(item.ImageURL.LastIndexOf("/") + 1) + ".jpg";
+                                var data = wc.GetByteArrayAsync(item.ImageURL).Result;
+                                if (data.Length > 0)
                                 {
-                                    _ = DownloadImage(wc, item.ImageURL, Path.Combine(imageFolderPath, item.LocalImageName));
+                                    item.LocalImageName = Convert.ToBase64String(data);
                                 }
-
                                 log.Info("Found item image URL: " + item.ImageURL);
                             }
 
@@ -907,62 +875,58 @@ namespace BoughtItems.UI_Merge
                         }
                     }
                 }
-
-                lock (ListOrders)
-                {
-                    lock (HashOrderID)
-                    {
-                        if (HashOrderID.Add(order.ID))
-                        {
-                            //new order
-                            string mess = "Add new: " + order.ID + " " + order.UserName;
-                            if (order.ListItems.Count > 0)
-                            {
-                                mess += " (" + order.ListItems[0].ItemName + ", ...)";
-                            }
-                            oldLog.Debug(mess);
-                        }
-                        else
-                        {
-                            //old order
-                            //2021.09.27: Override old order with new order from HTML
-                            log.Info("Override order: " + order.ID);
-                            int oldIndex = ListOrders.FindIndex(i => i.ID == order.ID);
-                            if (oldIndex >= 0)
-                            {
-                                ListOrders.RemoveAt(oldIndex);
-                            }
-                        }
-                    }
-                    ListOrders.Add(order);
-                }
+                ret.Add(order);
             }
-            ButtonMoveImages();
             log.Info("Complete parsing: " + path + " | Item count: " + ListOrders.Count);
+            return ret;
         }
 
-        internal void ButtonInitDatabase(List<OrderInfo> list)
+        internal void ButtonInitDatabase()
         {
             Stopwatch sw = Stopwatch.StartNew();
             ImportDatabase(Properties.Settings.Default.DatabasePath);
             int orderRow = 0;
             int itemRow = 0;
             int orderItemRow = 0;
+
+            //create local file name database
+            Dictionary<string, string> dict = new Dictionary<string, string>();
+            DirectoryInfo di = new DirectoryInfo(Path.Combine(Properties.Settings.Default.DatabaseDirectory, IMAGE_FOLDER_NAME));
+            if (di.Exists)
+            {
+                var subDirs = di.GetDirectories("*");
+                foreach (var imageDir in subDirs)
+                {
+                    var files = imageDir.GetFiles("*");
+                    foreach (var file in files)
+                    {
+                        dict[file.Name] = imageDir.Name;
+                    }
+                }
+            }
+
             using (var connection = new SqliteConnection("Data Source=\"" + GetDatabasePath() + "\""))
             {
                 connection.Open();
                 var transaction = connection.BeginTransaction();
-                foreach (var order in list)
+                foreach (var order in ListOrders)
                 {
                     orderRow += connection.Execute(@"INSERT OR IGNORE INTO orderpee (ID,URL,TotalPrice,UserName,ShopName,ShopURL) VALUES (@ID,@URL,@TotalPrice,@UserName,@ShopName,@ShopURL)", new { order.ID, URL = order.OrderURL, TotalPrice = (int)order.TotalPrice, order.UserName, order.ShopName, order.ShopURL });
                     foreach (var item in order.ListItems)
                     {
-                        itemRow += connection.Execute(@"INSERT OR IGNORE INTO item (Name,Detail,ImageURL) VALUES (@ItemName,@ItemDetails,@ImageURL)", new { item.ItemName, item.ItemDetails, item.ImageURL });
+                        if (!dict.TryGetValue(item.LocalImageName, out string subFolderName))
+                        {
+                            subFolderName = "";
+                        }
+                        string imageLocalPath = IMAGE_FOLDER_NAME + "/" + subFolderName + (subFolderName.Length > 0 ? "/" : "") + item.LocalImageName;
+                        imageLocalPath = Path.Combine(Properties.Settings.Default.DatabaseDirectory, imageLocalPath);
+                        string ImageData = File.Exists(imageLocalPath) ? Convert.ToBase64String(File.ReadAllBytes(imageLocalPath)) : "";
+                        itemRow += connection.Execute(@"INSERT OR IGNORE INTO item (Name,Detail,ImageURL,ImageData) VALUES (@ItemName,@ItemDetails,@ImageURL,@ImageData)", new { item.ItemName, item.ItemDetails, item.ImageURL, ImageData });
                     }
                 }
                 transaction.Commit();
                 transaction = connection.BeginTransaction();
-                foreach (var order in list)
+                foreach (var order in ListOrders)
                 {
                     foreach (var item in order.ListItems)
                     {
@@ -978,7 +942,7 @@ namespace BoughtItems.UI_Merge
 
         private string GetDatabasePath()
         {
-            return @"D:\DOWNLOADED\shopee.db";
+            return @"E:\ONLINE\Dropbox\Thu vien\Shopee Backup\shopee.db";
         }
     }
 }

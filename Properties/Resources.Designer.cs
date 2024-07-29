@@ -22,7 +22,7 @@ namespace BoughtItems.Properties {
     [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "17.0.0.0")]
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
-    internal class Resources {
+    public class Resources {
         
         private static global::System.Resources.ResourceManager resourceMan;
         
@@ -36,7 +36,7 @@ namespace BoughtItems.Properties {
         ///   Returns the cached ResourceManager instance used by this class.
         /// </summary>
         [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Advanced)]
-        internal static global::System.Resources.ResourceManager ResourceManager {
+        public static global::System.Resources.ResourceManager ResourceManager {
             get {
                 if (object.ReferenceEquals(resourceMan, null)) {
                     global::System.Resources.ResourceManager temp = new global::System.Resources.ResourceManager("BoughtItems.Properties.Resources", typeof(Resources).Assembly);
@@ -51,7 +51,7 @@ namespace BoughtItems.Properties {
         ///   resource lookups using this strongly typed resource class.
         /// </summary>
         [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Advanced)]
-        internal static global::System.Globalization.CultureInfo Culture {
+        public static global::System.Globalization.CultureInfo Culture {
             get {
                 return resourceCulture;
             }
@@ -61,28 +61,37 @@ namespace BoughtItems.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to 240128 
+        ///   Looks up a localized string similar to 240728 
         ///.
         /// </summary>
-        internal static string BuildTime {
+        public static string BuildTime {
             get {
                 return ResourceManager.GetString("BuildTime", resourceCulture);
             }
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to temp_image.
+        /// </summary>
+        public static string TEMP_IMAGE_FOLDER {
+            get {
+                return ResourceManager.GetString("TEMP_IMAGE_FOLDER", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to BoughtItems.
         /// </summary>
-        internal static string TITLE {
+        public static string TITLE {
             get {
                 return ResourceManager.GetString("TITLE", resourceCulture);
             }
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to 1.0.
+        ///   Looks up a localized string similar to 2.0.
         /// </summary>
-        internal static string VERSION {
+        public static string VERSION {
             get {
                 return ResourceManager.GetString("VERSION", resourceCulture);
             }

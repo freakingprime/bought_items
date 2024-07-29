@@ -8,10 +8,10 @@
     <Setting Name="DatabasePath" Type="System.String" Scope="User">
       <Value Profile="(Default)" />
     </Setting>
-    <Setting Name="LastHTMLDirectory" Type="System.String" Scope="User">
+    <Setting Name="HtmlDirectory" Type="System.String" Scope="User">
       <Value Profile="(Default)" />
     </Setting>
-    <Setting Name="LastDatabaseDirectory" Type="System.String" Scope="User">
+    <Setting Name="DatabaseDirectory" Type="System.String" Scope="User">
       <Value Profile="(Default)" />
     </Setting>
     <Setting Name="ExportedHTMLDirectory" Type="System.String" Scope="User">

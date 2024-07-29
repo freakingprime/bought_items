@@ -29,6 +29,14 @@ namespace BoughtItems.UI_Merge
         public List<ItemInfo> ListItems = new List<ItemInfo>(10);
         #endregion
 
+        public bool IsValid
+        {
+            get
+            {
+                return ID > 0 && OrderURL.Length > 0 && UserName.Length > 0 && ShopName.Length > 0 && ShopURL.Length > 0;
+            }
+        }
+
         public int CompareTo(OrderInfo other)
         {
             return ID.CompareTo(other.ID);

@@ -38,7 +38,7 @@ namespace BoughtItems
 
         public void SetTextBox(TextBox t)
         {
-            this.myTextBox = t;
+            myTextBox = t;
         }
 
         public void SetProgressBar(ProgressBar b)
@@ -62,7 +62,7 @@ namespace BoughtItems
                 t = 100;
             }
             bar.Value = t;
-            labelPercentage.Content = t + "% " + additionText;
+            labelPercentage.Content = additionText.Length > 0 ? t + "% (" + additionText + ")" : t + "%";
         }
 
         private void PrintToTextbox(string s, string tag = "")
@@ -85,6 +85,17 @@ namespace BoughtItems
         public void Error(string s)
         {
             PrintToTextbox(s, " Error");
+        }
+
+        public void Error(string s, Exception e1)
+        {
+            string message = "";
+            while (e1 != null)
+            {
+                message += e1.GetType().Name + " " + (e1.Message ?? "No message.") + " ";
+                e1 = e1.InnerException;
+            }
+            PrintToTextbox(s + " " + message, " Error");
         }
 
         public void Debug(string s)
