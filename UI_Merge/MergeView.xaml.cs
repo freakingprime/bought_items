@@ -163,16 +163,6 @@ namespace BoughtItems.UI_Merge
             }
         }
 
-        private void BtnDownloadImage_Click(object sender, RoutedEventArgs e)
-        {
-            context.ButtonDownloadImages();
-        }
-
-        private void BtnMoveImages_Click(object sender, RoutedEventArgs e)
-        {
-            context.ButtonMoveImages();
-        }
-
         private void BtnInitDatabase_Click(object sender, RoutedEventArgs e)
         {
             context?.ButtonInitDatabase();

@@ -124,14 +124,6 @@
                     <Button x:Name="BtnInitDatabase"
                             Content="Init Database"
                             Click="BtnInitDatabase_Click" />
-                    <Button x:Name="BtnDownloadImage"
-                            Content="Download Images"
-                            Click="BtnDownloadImage_Click"
-                            IsEnabled="{Binding DownloadButtonEnabled}" />
-                    <Button x:Name="BtnMoveImages"
-                            Content="Move Images"
-                            Click="BtnMoveImages_Click"
-                            IsEnabled="{Binding DownloadButtonEnabled}" />
                 </StackPanel>
             </StackPanel>
         </GroupBox>

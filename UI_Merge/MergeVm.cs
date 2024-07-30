@@ -99,10 +99,6 @@ namespace BoughtItems.UI_Merge
         }
 
         private const string IMAGE_FOLDER_NAME = "images";
-
-        private readonly List<OrderInfo> ListOrders = new List<OrderInfo>();
-        private readonly HashSet<long> HashOrderID = new HashSet<long>();
-
         private const string NONE_TEXT = "None";
         private readonly Regex regexOrderID = new Regex(@"\/order\/(\d+)");
         private readonly Regex regexShopID = new Regex(@"\/shop\/(\d+)");
@@ -282,86 +278,6 @@ namespace BoughtItems.UI_Merge
             }
         }
 
-        public async void ButtonDownloadImages()
-        {
-            ImportDatabase(Properties.Settings.Default.DatabasePath);
-            DirectoryInfo di = new DirectoryInfo(Path.Combine(Properties.Settings.Default.DatabaseDirectory, IMAGE_FOLDER_NAME));
-            if (!di.Exists)
-            {
-                di.Create();
-            }
-
-            const int NUMBER_OF_THREAD = 8;
-            int globalIndex = -1;
-            int orderCount = ListOrders.Count;
-            List<Task<List<ImageInfo>>> listTasks = new List<Task<List<ImageInfo>>>();
-            DownloadButtonEnabled = false;
-            HashSet<string> hashNames = new HashSet<string>(di.GetFiles("*", SearchOption.AllDirectories).Select(i => i.Name).ToList());
-            for (int i = 0; i < NUMBER_OF_THREAD; ++i)
-            {
-                int threadIndex = i;
-                listTasks.Add(Task.Run(() =>
-                {
-                    WebClient wc = new WebClient();
-                    int k = Interlocked.Increment(ref globalIndex);
-                    List<ImageInfo> result = new List<ImageInfo>();
-                    while (k < orderCount)
-                    {
-                        foreach (ItemInfo item in ListOrders[k].ListItems)
-                        {
-                            if (hashNames.Contains(item.LocalImageName))
-                            {
-                                continue;
-                            }
-                            ImageInfo info = new ImageInfo
-                            {
-                                URL = item.ImageURL
-                            };
-                            string localPath = DownloadImage(wc, info.URL, Path.Combine(di.FullName, item.LocalImageName));
-                            if (localPath.Length > 0)
-                            {
-                                info.LocalImagePath = localPath;
-                                result.Add(info);
-                            }
-                        }
-                        k = Interlocked.Increment(ref globalIndex);
-                    }
-                    return result;
-                }));
-            }
-            var allResults = await Task.WhenAll(listTasks.ToArray());
-            List<ImageInfo> finalResult = new List<ImageInfo>();
-            foreach (var ret in allResults)
-            {
-                finalResult.AddRange(ret);
-            }
-            DownloadButtonEnabled = true;
-            log.Info("Number of newly downloaded image files: " + finalResult.Count);
-            ButtonMoveImages();
-        }
-
-        private string DownloadImage(WebClient wc, string url, string path)
-        {
-            string result = string.Empty;
-            if (!File.Exists(path))
-            {
-                try
-                {
-                    wc.DownloadFile(url, path);
-                }
-                catch (Exception e1)
-                {
-                    log.Error("Cannot download image: " + url, e1);
-                }
-                if (File.Exists(path))
-                {
-                    log.Info("Downloaded: " + url + " to " + path);
-                    result = path;
-                }
-            }
-            return result;
-        }
-
         public async void ButtonExportToHTML()
         {
             string name = "";
@@ -422,71 +338,9 @@ namespace BoughtItems.UI_Merge
             IsTaskIdle = true;
         }
 
-        public void ButtonExportToHTML2()
-        {
-            SaveFileDialog dialog = new SaveFileDialog();
-            dialog.InitialDirectory = Utils.GetValidFolderPath(Properties.Settings.Default.ExportedHTMLDirectory);
-            dialog.Filter = "HTML File|*.html";
-            if ((bool)dialog.ShowDialog())
-            {
-                string name = dialog.FileName;
-                string directory = Utils.GetValidFolderPath(name);
-                log.Info("Directory: " + directory + " | Export to: " + name);
-                Properties.Settings.Default.ExportedHTMLDirectory = directory;
-                Properties.Settings.Default.Save();
-
-                const string BACKUP_FOLDER = "backup";
-                //_cts = Directory.CreateDirectory(Path.Combine(directory, BACKUP_FOLDER));
-
-                //backup HTML file
-                string backupName = Path.GetFileNameWithoutExtension(name);
-                backupName = backupName + "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + Path.GetExtension(name);
-                backupName = Path.Combine(Path.GetDirectoryName(name), BACKUP_FOLDER, backupName);
-                if (File.Exists(name))
-                {
-                    File.Copy(name, backupName, true);
-                }
-
-                CreateHTML(name);
-                string offlineHTMLName = name.Replace(".html", "_offline.html");
-                CreateOfflineHTML(offlineHTMLName);
-                oldLog.Debug("Exported to HTML file: " + name + " and " + offlineHTMLName);
-
-                //Save to database file
-                if (IsUseDatabase && File.Exists(Properties.Settings.Default.DatabasePath))
-                {
-                    //backup JSON file
-                    backupName = Path.GetFileNameWithoutExtension(Properties.Settings.Default.DatabasePath);
-                    backupName = backupName + "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + Path.GetExtension(Properties.Settings.Default.DatabasePath);
-                    backupName = Path.Combine(Properties.Settings.Default.DatabaseDirectory, BACKUP_FOLDER, backupName);
-                    File.Copy(Properties.Settings.Default.DatabasePath, backupName);
-
-                    ClearImageURLFromIllegalCharacters();
-                    File.WriteAllText(Properties.Settings.Default.DatabasePath, JsonConvert.SerializeObject(ListOrders, Formatting.Indented));
-                }
-            }
-        }
-
-        private void ClearImageURLFromIllegalCharacters()
-        {
-            foreach (OrderInfo order in ListOrders)
-            {
-                foreach (ItemInfo item in order.ListItems)
-                {
-                    if (item.ImageURL.Contains(")"))
-                    {
-                        item.ImageURL = item.ImageURL.Remove(item.ImageURL.IndexOf(")"));
-                    }
-                    if (item.LocalImageName.Length < 2)
-                    {
-                        item.LocalImageName = item.ImageURL.Substring(item.ImageURL.LastIndexOf("/") + 1) + ".jpg";
-                    }
-                }
-            }
-        }
-
         private void CreateOfflineHTML(string outputFile)
         {
+            List<OrderInfo> ListOrders = new List<OrderInfo>();
             StringWriter stringWriter = new StringWriter();
             const int IMAGE_SIZE = 150;
             int count = 0;
@@ -620,6 +474,7 @@ namespace BoughtItems.UI_Merge
 
         private void CreateHTML(string outputFile)
         {
+            List<OrderInfo> ListOrders = new List<OrderInfo>();
             StringWriter stringWriter = new StringWriter();
             const int IMAGE_SIZE = 150;
             int count = 0;
@@ -751,18 +606,20 @@ namespace BoughtItems.UI_Merge
             File.WriteAllText(newPath, string.Join(Environment.NewLine, list));
         }
 
-        private void ImportDatabase(string path)
+        private List<OrderInfo> ImportDatabase(string path)
         {
+            List<OrderInfo> ret = new List<OrderInfo>();
+            HashSet<long> HashOrderID = new HashSet<long>();
             try
             {
                 List<OrderInfo> temp = JsonConvert.DeserializeObject<List<OrderInfo>>(File.ReadAllText(path));
-                ListOrders.Clear();
+                ret.Clear();
                 HashOrderID.Clear();
                 foreach (OrderInfo order in temp)
                 {
                     if (HashOrderID.Add(order.ID))
                     {
-                        ListOrders.Add(order);
+                        ret.Add(order);
                     }
                 }
             }
@@ -770,6 +627,7 @@ namespace BoughtItems.UI_Merge
             {
                 log.Error("Cannot import database. " + (e1.Message ?? "No message"));
             }
+            return ret;
         }
 
         private const string ORDER_DIV = "YL_VlX"; //contain whole order
@@ -967,7 +825,7 @@ namespace BoughtItems.UI_Merge
                 }
                 ret.Add(order);
             }
-            log.Info("Complete parsing: " + path + " | Item count: " + ListOrders.Count);
+            log.Info("Complete parsing: " + path + " | Item count: " + ret.Count);
             return ret;
         }
 
@@ -1023,7 +881,7 @@ namespace BoughtItems.UI_Merge
         internal void ButtonInitDatabase()
         {
             Stopwatch sw = Stopwatch.StartNew();
-            ImportDatabase(Properties.Settings.Default.DatabasePath);
+            var ListOrders = ImportDatabase(Properties.Settings.Default.DatabasePath);
             int orderRow = 0;
             int itemRow = 0;
             int orderItemRow = 0;
