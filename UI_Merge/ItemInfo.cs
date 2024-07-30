@@ -32,7 +32,7 @@ namespace BoughtItems.UI_Merge
         {
             get
             {
-                return ItemName.Length > 0 || ItemDetails.Length > 0 || ImageURL.Length > 0;
+                return (ItemName.Length > 0 || ItemDetails.Length > 0 || ImageURL.Length > 0) && LocalImageName.Length > 0;
             }
         }
 

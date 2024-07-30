@@ -99,17 +99,7 @@
                             Value="1" />
                 </Style>
             </GroupBox.Resources>
-            <StackPanel Orientation="Vertical">
-                <DockPanel>
-                    <TextBlock>
-                        <Run Text="Progress (" />
-                        <Run Text="{Binding ProgressValue}" />
-                        <Run Text="%)" />
-                    </TextBlock>
-                    <ProgressBar x:Name="TheProgresBar"
-                                 Value="{Binding ProgressValue}"
-                                 Margin="2" />
-                </DockPanel>
+            <StackPanel Orientation="Vertical">                
                 <CheckBox x:Name="CheckboxUseDatabase"
                           Content="Use database"
                           IsChecked="{Binding IsUseDatabase}" />

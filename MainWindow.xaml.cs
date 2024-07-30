@@ -30,6 +30,8 @@ namespace BoughtItems
             InitializeComponent();
             Title = Properties.Resources.TITLE + " " + Properties.Resources.VERSION + "." + Properties.Resources.BuildTime;
             oldLog.SetTextBox(TxtLog);
+            oldLog.SetProgressBar(TheProgresBar);
+            oldLog.SetLabelPercentage(TxtProgress);
         }
 
         private MainWindowVm context = new MainWindowVm();

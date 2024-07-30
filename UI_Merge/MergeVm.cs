@@ -20,6 +20,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Web.UI;
+using System.Windows;
 using System.Windows.Media.Animation;
 
 namespace BoughtItems.UI_Merge
@@ -73,6 +74,20 @@ namespace BoughtItems.UI_Merge
         #endregion
 
         #region Normal properties
+
+        private static HttpClient _httpSingleton;
+
+        public static HttpClient HttpSingleton
+        {
+            get
+            {
+                if (_httpSingleton == null)
+                {
+                    _httpSingleton = new HttpClient();
+                }
+                return _httpSingleton;
+            }
+        }
 
         private const string IMAGE_FOLDER_NAME = "images";
 
@@ -129,7 +144,7 @@ namespace BoughtItems.UI_Merge
 
         private CancellationTokenSource _cts;
         private CancellationToken _cancelToken;
-        private IProgress<KeyValuePair<int, string>> _progressObject = new Progress<KeyValuePair<int, string>>(p =>
+        private IProgress<KeyValuePair<int, string>> _progress = new Progress<KeyValuePair<int, string>>(p =>
         {
             oldLog.SetValueProgress(p.Key, p.Value);
         });
@@ -150,37 +165,52 @@ namespace BoughtItems.UI_Merge
             _cancelToken = _cts.Token;
             IsTaskIdle = false;
             ConcurrentBag<OrderInfo> bagOrder = new ConcurrentBag<OrderInfo>();
-            string[] files = Properties.Settings.Default.HtmlFiles.Split(FILENAME_SEPERATOR);
-            await Parallel.ForEachAsync(files, (path, ct) =>
-            {
+            string[] files = Properties.Settings.Default.HtmlFiles.Split(FILENAME_SEPERATOR).Select(i => i.Trim()).Where(i => File.Exists(i)).ToArray();
+            int count = 0;
+            int size = files.Length;
 
+            //2024.07.30: We don't need to download images, just get content directly from internet
+            //string imageFolderPath = Path.Combine(Properties.Settings.Default.DatabaseDirectory, Properties.Resources.TEMP_IMAGE_FOLDER);
+            //var di = new DirectoryInfo(imageFolderPath);
+            //try
+            //{
+            //    if (di.Exists)
+            //    {
+            //        di.Delete(true);
+            //    }
+            //    di.Create();
+            //}
+            //catch (Exception e1)
+            //{
+            //    oldLog.Error("Cannot create temporary folder at: " + di.FullName, e1);
+            //}
+
+            await Parallel.ForEachAsync(files, (path, _) =>
+            {
+                try
+                {
+                    var ret = LoadDataFromFile(path);
+                    foreach (var item in ret)
+                    {
+                        bagOrder.Add(item);
+                    }
+                }
+                catch (Exception e1)
+                {
+                    oldLog.Error("Cannot load data from file: " + path, e1);
+                }
+                ++count;
+                _progress.Report(new KeyValuePair<int, string>(count * 100 / size, "Parsed " + count + "/" + size));
+                return new ValueTask();
             });
+            oldLog.Debug("Number of orders: " + bagOrder.Count);
+            oldLog.SetValueProgress(0);
 
             await Task.Run(() =>
             {
-                string[] files = Properties.Settings.Default.HtmlFiles.Split(FILENAME_SEPERATOR);
-                for (int i = 0; i < files.Length; ++i)
-                {
-                    files[i] = files[i].Trim();
-                    if (File.Exists(files[i]))
-                    {
-                        try
-                        {
-                            var ret = LoadDataFromFile(files[i], i, files.Length);
-                            foreach (var item in ret)
-                            {
-                                bagOrder.Add(item);
-                            }
-                        }
-                        catch (Exception e1)
-                        {
-                            oldLog.Error("Cannot load data from file: " + files[i], e1);
-                        }
-                    }
-                }
+                InsertToDatabase(bagOrder);
             });
-            oldLog.Debug("Task is completed. Number of orders: " + bagOrder.Count);
-            oldLog.SetValueProgress(0);
+
             IsTaskIdle = true;
         }
 
@@ -687,7 +717,7 @@ namespace BoughtItems.UI_Merge
         private const string ORIGINAL_PRICE_SPAN = "q6Gzj5";
         private const string IMAGE_DIV = "dJaa92";
 
-        private List<OrderInfo> LoadDataFromFile(string path, int currentFile, int numberOfFile)
+        private List<OrderInfo> LoadDataFromFile(string path)
         {
             List<OrderInfo> ret = new List<OrderInfo>();
             var doc = new HtmlDocument();
@@ -710,21 +740,6 @@ namespace BoughtItems.UI_Merge
             }
 
             //2021.08.18: Download images too
-            HttpClient wc = new HttpClient();
-            string imageFolderPath = Path.Combine(Properties.Settings.Default.DatabaseDirectory, Properties.Resources.TEMP_IMAGE_FOLDER);
-            var di = new DirectoryInfo(imageFolderPath);
-            try
-            {
-                if (di.Exists)
-                {
-                    di.Delete(true);
-                }
-                di.Create();
-            }
-            catch (Exception e1)
-            {
-                oldLog.Error("Cannot create temporary folder at: " + di.FullName, e1);
-            }
             int currentIndex = 0;
             foreach (HtmlNode orderDiv in orderDivs)
             {
@@ -799,71 +814,73 @@ namespace BoughtItems.UI_Merge
                             node = itemNode.SelectSingleNode(GetNode("span", ITEM_NAME_SPAN));
                             if (node != null)
                             {
-                                item.ItemName = node.InnerText.Trim();
-                                log.Info("Found item name: " + item.ItemName);
-                            }
-
-                            log.Info("Find item details");
-                            node = itemNode.SelectSingleNode(GetNode("div", ITEM_DETAIL_DIV));
-                            if (node != null)
-                            {
-                                item.ItemDetails = node.InnerText.Substring(node.InnerText.IndexOf(':') + 1).Trim();
-                                log.Info("Found item details: " + item.ItemDetails);
-                            }
-
-                            log.Info("Find item quantity");
-                            node = itemNode.SelectSingleNode(GetNode("div", ITEM_QUANTITY_DIV));
-                            if (node != null && long.TryParse(node.InnerText.Substring(node.InnerText.IndexOf('x') + 1).Trim(), out item.NumberOfItem))
-                            {
-                                log.Info("Found item quantily: " + item.NumberOfItem);
-                            }
-
-                            log.Info("Find actual price");
-                            node = itemNode.SelectSingleNode(GetNode("div", ACTUAL_PRICE_DIV));
-                            if (node != null)
-                            {
-                                HtmlNode subNode = node.SelectSingleNode(GetNode("span", ACTUAL_PRICE_SPAN));
-                                if (subNode != null)
                                 {
-                                    item.ActualPrice = GetNumberFromString(subNode.InnerText);
-                                    log.Info("Found actual price: " + item.ActualPrice);
-
-                                    log.Info("Find original price");
-                                    subNode = node.SelectSingleNode(GetNode("span", ORIGINAL_PRICE_SPAN));
-                                    if (subNode != null)
-                                    {
-                                        item.OriginalPrice = GetNumberFromString(subNode.InnerText);
-                                        log.Info("Found original price: " + item.OriginalPrice);
-                                    }
+                                    item.ItemName = node.InnerText.Trim();
+                                    log.Info("Found item name: " + item.ItemName);
                                 }
-                                else
+
+                                log.Info("Find item details");
+                                node = itemNode.SelectSingleNode(GetNode("div", ITEM_DETAIL_DIV));
+                                if (node != null)
                                 {
-                                    subNode = node.SelectSingleNode(".//span");
+                                    item.ItemDetails = node.InnerText.Substring(node.InnerText.IndexOf(':') + 1).Trim();
+                                    log.Info("Found item details: " + item.ItemDetails);
+                                }
+
+                                log.Info("Find item quantity");
+                                node = itemNode.SelectSingleNode(GetNode("div", ITEM_QUANTITY_DIV));
+                                if (node != null && long.TryParse(node.InnerText.Substring(node.InnerText.IndexOf('x') + 1).Trim(), out item.NumberOfItem))
+                                {
+                                    log.Info("Found item quantily: " + item.NumberOfItem);
+                                }
+
+                                log.Info("Find actual price");
+                                node = itemNode.SelectSingleNode(GetNode("div", ACTUAL_PRICE_DIV));
+                                if (node != null)
+                                {
+                                    HtmlNode subNode = node.SelectSingleNode(GetNode("span", ACTUAL_PRICE_SPAN));
                                     if (subNode != null)
                                     {
                                         item.ActualPrice = GetNumberFromString(subNode.InnerText);
-                                        item.OriginalPrice = item.ActualPrice;
-                                        log.Info("There's only 1 price: " + item.ActualPrice);
+                                        log.Info("Found actual price: " + item.ActualPrice);
+
+                                        log.Info("Find original price");
+                                        subNode = node.SelectSingleNode(GetNode("span", ORIGINAL_PRICE_SPAN));
+                                        if (subNode != null)
+                                        {
+                                            item.OriginalPrice = GetNumberFromString(subNode.InnerText);
+                                            log.Info("Found original price: " + item.OriginalPrice);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        subNode = node.SelectSingleNode(".//span");
+                                        if (subNode != null)
+                                        {
+                                            item.ActualPrice = GetNumberFromString(subNode.InnerText);
+                                            item.OriginalPrice = item.ActualPrice;
+                                            log.Info("There's only 1 price: " + item.ActualPrice);
+                                        }
                                     }
                                 }
-                            }
 
-                            log.Info("Find item image");
-                            node = itemNode.SelectSingleNode(GetNode("div", IMAGE_DIV));
-                            if (node != null && regexItemImageURL.IsMatch(node.OuterHtml))
-                            {
-                                item.ImageURL = regexItemImageURL.Match(node.OuterHtml).Value.Trim();
-                                string imageName = item.ImageURL.Substring(item.ImageURL.LastIndexOf("/") + 1) + ".jpg";
-                                var data = wc.GetByteArrayAsync(item.ImageURL).Result;
-                                if (data.Length > 0)
+                                log.Info("Find item image");
+                                node = itemNode.SelectSingleNode(GetNode("div", IMAGE_DIV));
+                                if (node != null && regexItemImageURL.IsMatch(node.OuterHtml))
                                 {
-                                    item.LocalImageName = Convert.ToBase64String(data);
+                                    item.ImageURL = regexItemImageURL.Match(node.OuterHtml).Value.Trim();
+                                    string imageName = item.ImageURL.Substring(item.ImageURL.LastIndexOf("/") + 1) + ".jpg";
+                                    var data = HttpSingleton.GetByteArrayAsync(item.ImageURL).Result;
+                                    if (data.Length > 0)
+                                    {
+                                        item.LocalImageName = Convert.ToBase64String(data);
+                                    }
+                                    log.Info("Found item image URL: " + item.ImageURL);
                                 }
-                                log.Info("Found item image URL: " + item.ImageURL);
-                            }
 
-                            log.Info("Add item to list");
-                            order.ListItems.Add(item);
+                                log.Info("Add item to list");
+                                order.ListItems.Add(item);
+                            }
                         }
                         catch (NullReferenceException e1)
                         {
@@ -879,6 +896,55 @@ namespace BoughtItems.UI_Merge
             }
             log.Info("Complete parsing: " + path + " | Item count: " + ListOrders.Count);
             return ret;
+        }
+
+        private void InsertToDatabase(IEnumerable<OrderInfo> list)
+        {
+            Stopwatch sw = Stopwatch.StartNew();
+            oldLog.Debug("Begin insert " + list.Count() + " order to database...");
+            int orderRow = 0;
+            int itemRow = 0;
+            int orderItemRow = 0;
+            int errorOrder = list.Count(i => !i.IsValid);
+            int errorItem = list.SelectMany(i => i.ListItems).Count(i => !i.IsValid);
+            if (errorOrder > 0 || errorItem > 0)
+            {
+                string mess = "Found " + errorOrder + " order error and " + errorItem + " item error. Still continue.";
+                oldLog.Error(mess);
+                _ = MessageBox.Show(mess, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            using (var connection = new SqliteConnection("Data Source=\"" + GetDatabasePath() + "\""))
+            {
+                connection.Open();
+                var transaction = connection.BeginTransaction();
+                foreach (var order in list)
+                {
+                    if (order.IsValid)
+                    {
+                        orderRow += connection.Execute(@"INSERT OR IGNORE INTO orderpee (ID,URL,TotalPrice,UserName,ShopName,ShopURL) VALUES (@ID,@URL,@TotalPrice,@UserName,@ShopName,@ShopURL)", new { order.ID, URL = order.OrderURL, TotalPrice = (int)order.TotalPrice, order.UserName, order.ShopName, order.ShopURL });
+                    }
+                    foreach (var item in order.ListItems)
+                    {
+                        if (item.IsValid)
+                        {
+                            itemRow += connection.Execute(@"INSERT OR IGNORE INTO item (Name,Detail,ImageURL,ImageData) VALUES (@ItemName,@ItemDetails,@ImageURL,@ImageData)", new { item.ItemName, item.ItemDetails, item.ImageURL, ImageData = item.LocalImageName });
+                        }
+                    }
+                }
+                transaction.Commit();
+                transaction = connection.BeginTransaction();
+                foreach (var order in list)
+                {
+                    foreach (var item in order.ListItems)
+                    {
+                        int ItemID = connection.QuerySingle<int>(@"SELECT ID FROM item WHERE Name=@ItemName AND Detail=@ItemDetails AND ImageURL=@ImageURL", new { item.ItemName, item.ItemDetails, item.ImageURL });
+                        orderItemRow += connection.Execute(@"INSERT OR IGNORE INTO order_item (OrderID,ItemID,ActualPrice,OriginalPrice,Quantity) VALUES (@OrderID,@ItemID,@ActualPrice,@OriginalPrice,@NumberOfItem)", new { OrderID = order.ID, ItemID, item.ActualPrice, item.OriginalPrice, item.NumberOfItem });
+                    }
+                }
+                transaction.Commit();
+            }
+            sw.Stop();
+            oldLog.Debug("Insert " + orderRow + " order and " + itemRow + " item and " + orderItemRow + " connection to DB in: " + sw.ElapsedMilliseconds + " ms");
         }
 
         internal void ButtonInitDatabase()
