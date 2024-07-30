@@ -34,6 +34,7 @@ namespace BoughtItems.UI_Merge
         {
             IsTaskIdle = true;
             DownloadButtonEnabled = true;
+            IsUseDatabase = true;
         }
 
         #region Bind properties
@@ -69,6 +70,10 @@ namespace BoughtItems.UI_Merge
             get { return _downloadButtonEnabled; }
             set { SetValue(ref _downloadButtonEnabled, value); }
         }
+
+        private string _txtDatabasePath;
+
+        public string TxtDatabasePath { get => _txtDatabasePath; set => SetValue(ref _txtDatabasePath, value); }
 
 
         #endregion
@@ -1008,7 +1013,33 @@ namespace BoughtItems.UI_Merge
 
         private string GetDatabasePath()
         {
-            return @"E:\ONLINE\Dropbox\Thu vien\Shopee Backup\shopee.db";
+            string targetPath = Properties.Settings.Default.DatabasePath;
+            if (!File.Exists(targetPath))
+            {
+                //copy template file to target path
+                FileInfo templateInfo = new FileInfo("template.db");
+                if (templateInfo.Exists)
+                {
+                    try
+                    {
+                        File.Copy(templateInfo.FullName, targetPath, true);
+                    }
+                    catch (Exception e1)
+                    {
+                        oldLog.Error("Cannot copy template database to target: " + targetPath, e1);
+                    }
+                }
+                else
+                {
+                    oldLog.Error("Cannot find template database at: " + templateInfo.FullName);
+                }
+            }
+            if (!File.Exists(targetPath))
+            {
+                targetPath = "";
+            }
+            TxtDatabasePath = targetPath;
+            return targetPath;
         }
     }
 }

@@ -13,6 +13,16 @@
         <local:MergeVm />
     </UserControl.DataContext>
     <UserControl.Resources>
+        <Style TargetType="{x:Type TextBox}">
+            <Setter Property="VerticalAlignment"
+                    Value="Center" />
+            <Setter Property="Margin"
+                    Value="1" />
+            <Setter Property="MinHeight"
+                    Value="25" />
+            <Setter Property="VerticalContentAlignment"
+                    Value="Center" />
+        </Style>
         <Style TargetType="{x:Type TextBlock}">
             <Setter Property="VerticalAlignment"
                     Value="Center" />
@@ -35,14 +45,6 @@
     <StackPanel Orientation="Vertical">
         <GroupBox Header="File">
             <Grid>
-                <Grid.Resources>
-                    <Style TargetType="{x:Type TextBox}">
-                        <Setter Property="VerticalAlignment"
-                                Value="Center" />
-                        <Setter Property="Margin"
-                                Value="1" />
-                    </Style>
-                </Grid.Resources>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
@@ -72,7 +74,7 @@
                          Height="100"
                          AcceptsReturn="True"
                          VerticalScrollBarVisibility="Visible"
-                         Text="{Binding TxtHTMLFiles,UpdateSourceTrigger=PropertyChanged}"
+                         VerticalContentAlignment="Top"
                          TextChanged="TxtSelectedHTML_TextChanged" />
                 <TextBlock Text="Database File"
                            Grid.Row="1"
@@ -85,7 +87,8 @@
                 <TextBox x:Name="TxtDatabaseFile"
                          Grid.Row="1"
                          Grid.Column="2"
-                         TextChanged="TxtDatabaseFile_TextChanged" />
+                         TextChanged="TxtDatabaseFile_TextChanged"
+                         Text="{Binding TxtDatabasePath,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" />
             </Grid>
         </GroupBox>
         <GroupBox Header="Control">
@@ -99,9 +102,8 @@
                             Value="1" />
                 </Style>
             </GroupBox.Resources>
-            <StackPanel Orientation="Vertical">                
-                <CheckBox x:Name="CheckboxUseDatabase"
-                          Content="Use database"
+            <StackPanel Orientation="Vertical">
+                <CheckBox Content="Use database"
                           IsChecked="{Binding IsUseDatabase}" />
                 <StackPanel Orientation="Horizontal"
                             IsEnabled="{Binding IsTaskIdle}">

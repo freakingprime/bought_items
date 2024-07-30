@@ -45,8 +45,6 @@ namespace BoughtItems.UI_Merge
             {
                 TxtDatabaseFile.Text = Properties.Settings.Default.DatabasePath;
             }
-
-            CheckboxUseDatabase.IsChecked = true;
             BtnAutoLoad_Click(null, null);
         }
 
@@ -95,6 +93,20 @@ namespace BoughtItems.UI_Merge
         }
 
         private void BtnBrowseDatabaseFile_Click(object sender, RoutedEventArgs e)
+        {
+            OpenFileDialog dialog = new OpenFileDialog
+            {
+                InitialDirectory = Utils.GetValidFolderPath(Properties.Settings.Default.DatabaseDirectory),
+                Filter = "DB File|*.db",
+                CheckFileExists = false,
+            };
+            if ((bool)dialog.ShowDialog())
+            {
+                TxtDatabaseFile.Text = dialog.FileName;
+            }
+        }
+
+        private void BtnBrowseDatabaseFile_Click2(object sender, RoutedEventArgs e)
         {
             OpenFileDialog dialog = new OpenFileDialog
             {
