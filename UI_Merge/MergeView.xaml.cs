@@ -138,12 +138,12 @@ namespace BoughtItems.UI_Merge
 
         private void BtnMerge_Click(object sender, RoutedEventArgs e)
         {
-            context.ButtonMerge();
+            context?.ButtonMerge();
         }
 
         private void BtnExportToHTML_Click(object sender, RoutedEventArgs e)
         {
-            context.ButtonExportToHTML();
+            context?.ButtonExportToHTML();
         }
 
         private void BtnAutoLoad_Click(object sender, RoutedEventArgs e)

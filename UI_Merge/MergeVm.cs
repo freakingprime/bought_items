@@ -35,6 +35,7 @@ namespace BoughtItems.UI_Merge
             IsTaskIdle = true;
             DownloadButtonEnabled = true;
             IsUseDatabase = true;
+            IsExportDefaultFilename = true;
         }
 
         #region Bind properties
@@ -75,6 +76,9 @@ namespace BoughtItems.UI_Merge
 
         public string TxtDatabasePath { get => _txtDatabasePath; set => SetValue(ref _txtDatabasePath, value); }
 
+        private bool _isExportDefaultFilename;
+
+        public bool IsExportDefaultFilename { get => _isExportDefaultFilename; set => SetValue(ref _isExportDefaultFilename, value); }
 
         #endregion
 
@@ -358,7 +362,67 @@ namespace BoughtItems.UI_Merge
             return result;
         }
 
-        public void ButtonExportToHTML()
+        public async void ButtonExportToHTML()
+        {
+            string name = "";
+            string directory = "";
+            if (IsExportDefaultFilename)
+            {
+                directory = Properties.Settings.Default.ExportedHTMLDirectory;
+                if (!Directory.Exists(directory))
+                {
+                    directory = Properties.Settings.Default.DatabaseDirectory;
+                }
+                name = Path.Combine(directory, "Summary.html");
+                if (MessageBox.Show("Do you want to export to: " + name, "Confirm", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) != MessageBoxResult.Yes)
+                {
+                    return;
+                }
+            }
+            else
+            {
+                //user select exported file
+                SaveFileDialog dialog = new SaveFileDialog
+                {
+                    InitialDirectory = Utils.GetValidFolderPath(Properties.Settings.Default.ExportedHTMLDirectory),
+                    Filter = "HTML File|*.html",
+                    CheckFileExists = false,
+                };
+                if ((bool)dialog.ShowDialog())
+                {
+                    name = dialog.FileName;
+                    directory = Path.GetDirectoryName(name);
+                }
+            }
+            Properties.Settings.Default.ExportedHTMLDirectory = directory;
+            Properties.Settings.Default.Save();
+            oldLog.Debug("Will export to: " + name);
+
+            IsTaskIdle = false;
+            await Task.Run(() =>
+            {
+                //backup HTML file
+                const string BACKUP_FOLDER = "backup";
+                _ = Directory.CreateDirectory(Path.Combine(directory, BACKUP_FOLDER));
+                string backupName = Path.GetFileNameWithoutExtension(name);
+                backupName = backupName + "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + Path.GetExtension(name);
+                backupName = Path.Combine(Path.GetDirectoryName(name), BACKUP_FOLDER, backupName);
+                if (File.Exists(name))
+                {
+                    File.Copy(name, backupName, true);
+                }
+
+                //create HTML
+                string offlineHTMLName = name.Replace(".html", "_offline.html");
+                CreateHTML(name);
+                CreateOfflineHTML(offlineHTMLName);
+                oldLog.Debug("Exported to HTML file: " + name + " and " + offlineHTMLName);
+            });
+            oldLog.SetValueProgress(0);
+            IsTaskIdle = true;
+        }
+
+        public void ButtonExportToHTML2()
         {
             SaveFileDialog dialog = new SaveFileDialog();
             dialog.InitialDirectory = Utils.GetValidFolderPath(Properties.Settings.Default.ExportedHTMLDirectory);
@@ -874,6 +938,10 @@ namespace BoughtItems.UI_Merge
                                 if (node != null && regexItemImageURL.IsMatch(node.OuterHtml))
                                 {
                                     item.ImageURL = regexItemImageURL.Match(node.OuterHtml).Value.Trim();
+                                    if (item.ImageURL.Contains(")"))
+                                    {
+                                        item.ImageURL = item.ImageURL.Remove(item.ImageURL.IndexOf(")"));
+                                    }
                                     string imageName = item.ImageURL.Substring(item.ImageURL.LastIndexOf("/") + 1) + ".jpg";
                                     var data = HttpSingleton.GetByteArrayAsync(item.ImageURL).Result;
                                     if (data.Length > 0)
@@ -1041,5 +1109,6 @@ namespace BoughtItems.UI_Merge
             TxtDatabasePath = targetPath;
             return targetPath;
         }
+
     }
 }

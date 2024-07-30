@@ -103,22 +103,27 @@
                 </Style>
             </GroupBox.Resources>
             <StackPanel Orientation="Vertical">
-                <CheckBox Content="Use database"
-                          IsChecked="{Binding IsUseDatabase}" />
+                <StackPanel Orientation="Horizontal">
+                    <CheckBox Content="Use database"
+                              IsChecked="{Binding IsUseDatabase}" />
+                    <CheckBox Content="Export to Summary.html"
+                              IsChecked="{Binding IsExportDefaultFilename}" />
+                </StackPanel>
+
                 <StackPanel Orientation="Horizontal"
                             IsEnabled="{Binding IsTaskIdle}">
                     <Button x:Name="BtnMerge"
                             Content="Merge"
                             Click="BtnMerge_Click" />
                     <Button x:Name="BtnExportToHTML"
-                            Content="Export to HTML and database file"
+                            Content="Export to HTML"
                             Click="BtnExportToHTML_Click" />
-                    <Button x:Name="BtnInitDatabase"
-                            Content="Init Database"
-                            Click="BtnInitDatabase_Click" />
                 </StackPanel>
                 <StackPanel Orientation="Horizontal"
                             Name="StackDebug">
+                    <Button x:Name="BtnInitDatabase"
+                            Content="Init Database"
+                            Click="BtnInitDatabase_Click" />
                     <Button x:Name="BtnDownloadImage"
                             Content="Download Images"
                             Click="BtnDownloadImage_Click"
