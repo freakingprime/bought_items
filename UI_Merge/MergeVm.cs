@@ -357,12 +357,28 @@ namespace BoughtItems.UI_Merge
             List<string> listExcelText = new List<string>();
             const string TAB = "\t";
 
-            listExcelText.Add(string.Join(TAB, "No", "Item", "Quantity", "Actual Price", "Total Price", "Order", "Shop", "User"));
+            if (includeLocalImage)
+            {
+                //remove count column in _offline file
+                listExcelText.Add(string.Join(TAB, "Item", "Quantity", "Actual Price", "Total Price", "Order", "Shop", "User"));
+            }
+            else
+            {
+                listExcelText.Add(string.Join(TAB, "No", "Item", "Quantity", "Actual Price", "Total Price", "Order", "Shop", "User"));
+            }
             count = 0;
             foreach (var item in arrOrder)
             {
                 ++count;
-                listExcelText.Add(string.Join(TAB, count, item.Name.Replace("\r", "").Replace("\n", "") + (item.Detail.Length > 0 ? (" | " + item.Detail) : ""), item.Quantity, item.ActualPrice, item.ActualPrice * item.Quantity, item.OrderID, item.ShopName, item.UserName));
+                if (includeLocalImage)
+                {
+                    //remove count column in _offline file
+                    listExcelText.Add(string.Join(TAB, item.Name.Replace("\r", "").Replace("\n", "") + (item.Detail.Length > 0 ? (" | " + item.Detail) : ""), item.Quantity, item.ActualPrice, item.ActualPrice * item.Quantity, item.OrderID, item.ShopName, item.UserName));
+                }
+                else
+                {
+                    listExcelText.Add(string.Join(TAB, count, item.Name.Replace("\r", "").Replace("\n", "") + (item.Detail.Length > 0 ? (" | " + item.Detail) : ""), item.Quantity, item.ActualPrice, item.ActualPrice * item.Quantity, item.OrderID, item.ShopName, item.UserName));
+                }
             }
             string newPath = outputFile.Replace(Path.GetExtension(outputFile), "") + "_excel.txt";
             File.WriteAllText(newPath, string.Join(Environment.NewLine, listExcelText));
