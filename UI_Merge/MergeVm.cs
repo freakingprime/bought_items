@@ -474,10 +474,32 @@ namespace BoughtItems.UI_Merge
 
         private void CreateHTML(string outputFile)
         {
-            List<OrderInfo> ListOrders = new List<OrderInfo>();
+            Stopwatch sw = Stopwatch.StartNew();
+            IEnumerable<DbModelOrder> list = null;
+            using (var connection = new SqliteConnection("Data Source=\"" + GetDatabasePath() + "\""))
+            {
+                list = connection.Query<DbModelOrder>(@"select * from orderpee,item,order_item where orderpee.ID=order_item.OrderID and item.ID=order_item.ItemID");
+                sw.Stop();
+                oldLog.Debug("Query all data in: " + sw.ElapsedMilliseconds + " ms");
+            }
+            if (list == null)
+            {
+                oldLog.Error("Cannot query database");
+                return;
+            }
+            var arrOrder = list.ToArray();
+            Array.Sort(arrOrder, (x, y) =>
+            {
+                if (y.OrderID == x.OrderID)
+                {
+                    return x.Name.CompareTo(y.Name);
+                }
+                return y.OrderID.CompareTo(x.OrderID);
+            });
             StringWriter stringWriter = new StringWriter();
             const int IMAGE_SIZE = 150;
             int count = 0;
+
             using (HtmlTextWriter writer = new HtmlTextWriter(stringWriter))
             {
                 writer.RenderBeginTag(HtmlTextWriterTag.Html);
@@ -507,17 +529,17 @@ namespace BoughtItems.UI_Merge
                 writer.WriteLine("<th width=\"40\">No</th>");
                 writer.WriteLine("<th width=\"150\">Image</th>");
                 writer.WriteLine("<th width=\"150\">Local Image</th>");
-                writer.WriteLine("<th>Item (" + ListOrders.Sum(i => i.ListItems.Count) + ") </th>");
+                writer.WriteLine("<th>Item (" + arrOrder.Count() + ") </th>");
 
-                long superTotalActualPrice = ListOrders.Sum(i => i.ListItems.Sum(j => j.ActualPrice * j.NumberOfItem));
+                long superTotalActualPrice = arrOrder.Sum(i => i.ActualPrice * i.Quantity);
                 writer.WriteLine("<th width=\"70\">Price (" + superTotalActualPrice.ToString("N0") + ") </th>");
 
                 //2021.11.14: Add recuded money
-                long totalPaid = ListOrders.Sum(i => i.TotalPrice);
+                long totalPaid = arrOrder.GroupBy(order => order.OrderID).Sum(group => group.First().TotalPrice);
                 writer.WriteLine("<th width=\"70\">Paid (Saved " + (superTotalActualPrice - totalPaid).ToString("N0") + ") </th>");
 
-                writer.WriteLine("<th width=\"125\">Order (" + ListOrders.GroupBy(i => i.OrderURL).Select(group => group.First()).Count() + ") </th>");
-                writer.WriteLine("<th width=\"120\">Shop (" + ListOrders.GroupBy(i => i.ShopURL).Select(g => g.First()).Count() + ") </th>");
+                writer.WriteLine("<th width=\"125\">Order (" + arrOrder.GroupBy(order => order.OrderID).Count() + ") </th>");
+                writer.WriteLine("<th width=\"120\">Shop (" + arrOrder.GroupBy(order => order.ShopURL).Count() + ") </th>");
                 writer.WriteLine("<th width=\"120\">User</th>");
                 writer.RenderEndTag(); //end tr
 
@@ -526,25 +548,9 @@ namespace BoughtItems.UI_Merge
                 writer.RenderBeginTag(HtmlTextWriterTag.Tbody);
                 count = 0;
 
-                //create local file name database
-                Dictionary<string, string> dict = new Dictionary<string, string>();
-                DirectoryInfo di = new DirectoryInfo(Path.Combine(Properties.Settings.Default.DatabaseDirectory, IMAGE_FOLDER_NAME));
-                if (di.Exists)
+                foreach (var order in arrOrder)
                 {
-                    var subDirs = di.GetDirectories("*");
-                    foreach (var imageDir in subDirs)
-                    {
-                        var files = imageDir.GetFiles("*");
-                        foreach (var file in files)
-                        {
-                            dict[file.Name] = imageDir.Name;
-                        }
-                    }
-                }
-
-                foreach (OrderInfo order in ListOrders)
-                {
-                    long totalActualPrice = order.ListItems.Sum(i => i.ActualPrice * i.NumberOfItem);
+                    long totalActualPrice = arrOrder.Where(i => i.OrderID == order.OrderID).Sum(i => i.ActualPrice * i.Quantity);
                     foreach (ItemInfo item in order.ListItems)
                     {
                         writer.RenderBeginTag(HtmlTextWriterTag.Tr);
