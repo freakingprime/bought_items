@@ -534,14 +534,15 @@ namespace BoughtItems.UI_Merge
             List<string> list = new List<string>();
             const string TAB = "\t";
 
-            list.Add(string.Join(TAB, "No", "Item", "Quantity", "Actual Price", "Total Price", "Order", "Shop", "User"));
+            //remove count column
+            list.Add(string.Join(TAB, "Item", "Quantity", "Actual Price", "Total Price", "Order", "Shop", "User"));
             count = 0;
             foreach (OrderInfo order in ListOrders)
             {
                 foreach (ItemInfo item in order.ListItems)
                 {
                     ++count;
-                    list.Add(string.Join(TAB, count, item.ItemName.Replace("\r", "").Replace("\n", "") + (item.ItemDetails.Length > 0 ? (" | " + item.ItemDetails) : ""), item.NumberOfItem, item.ActualPrice, item.ActualPrice * item.NumberOfItem, order.ID, order.ShopName, order.UserName));
+                    list.Add(string.Join(TAB, item.ItemName.Replace("\r", "").Replace("\n", "") + (item.ItemDetails.Length > 0 ? (" | " + item.ItemDetails) : ""), item.NumberOfItem, item.ActualPrice, item.ActualPrice * item.NumberOfItem, order.ID, order.ShopName, order.UserName));
                 }
             }
             string newPath = outputFile.Replace(Path.GetExtension(outputFile), "") + "_excel.txt";
