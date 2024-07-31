@@ -228,8 +228,8 @@ namespace BoughtItems.UI_Merge
                 {
                     tempList = connection.Query<DbModelOrder>(@"select * from orderpee,item,order_item where orderpee.ID=order_item.OrderID and item.ID=order_item.ItemID");
                 }
-                sw.Stop();
                 oldLog.Debug("Query all data in: " + sw.ElapsedMilliseconds + " ms");
+                sw.Restart();
                 if (tempList == null)
                 {
                     oldLog.Error("Cannot query database");
@@ -267,8 +267,9 @@ namespace BoughtItems.UI_Merge
                     }
                     string newPath = name.Replace(Path.GetExtension(name), "") + "_excel.txt";
                     File.WriteAllText(newPath, string.Join(Environment.NewLine, listExcelText));
-                    oldLog.Debug("Exported to HTML file: " + name + " and " + offlineHTMLName);
+                    oldLog.Debug("Exported to HTML file: " + name + " and " + offlineHTMLName + " in " + sw.ElapsedMilliseconds + " ms");
                 }
+                sw.Stop();
             });
             oldLog.SetValueProgress(0);
             IsTaskIdle = true;
