@@ -621,7 +621,14 @@ namespace BoughtItems.UI_Merge
                 foreach (OrderInfo order in ListOrders)
                 {
                     long totalActualPrice = order.ListItems.Sum(i => i.ActualPrice * i.NumberOfItem);
-                    order.ListItems.Sort((x, y) => x.ItemName.CompareTo(y.ItemName));
+                    order.ListItems.Sort((x, y) =>
+                    {
+                        if (x.ItemName.Equals(y.ItemName))
+                        {
+                            return x.ItemDetails.CompareTo(y.ItemDetails);
+                        }
+                        return x.ItemName.CompareTo(y.ItemName);
+                    });
                     foreach (ItemInfo item in order.ListItems)
                     {
                         writer.RenderBeginTag(HtmlTextWriterTag.Tr);
