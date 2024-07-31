@@ -104,8 +104,6 @@
             </GroupBox.Resources>
             <StackPanel Orientation="Vertical">
                 <StackPanel Orientation="Horizontal">
-                    <CheckBox Content="Use database"
-                              IsChecked="{Binding IsUseDatabase}" />
                     <CheckBox Content="Export to Summary.html"
                               IsChecked="{Binding IsExportDefaultFilename}" />
                 </StackPanel>
