@@ -331,7 +331,7 @@ namespace BoughtItems.UI_Merge
                 //create HTML
                 string offlineHTMLName = name.Replace(".html", "_offline.html");
                 CreateHTML(name);
-                CreateOfflineHTML(offlineHTMLName);
+                //CreateOfflineHTML(offlineHTMLName);
                 oldLog.Debug("Exported to HTML file: " + name + " and " + offlineHTMLName);
             });
             oldLog.SetValueProgress(0);
@@ -475,19 +475,19 @@ namespace BoughtItems.UI_Merge
         private void CreateHTML(string outputFile)
         {
             Stopwatch sw = Stopwatch.StartNew();
-            IEnumerable<DbModelOrder> list = null;
+            IEnumerable<DbModelOrder> tempList = null;
             using (var connection = new SqliteConnection("Data Source=\"" + GetDatabasePath() + "\""))
             {
-                list = connection.Query<DbModelOrder>(@"select * from orderpee,item,order_item where orderpee.ID=order_item.OrderID and item.ID=order_item.ItemID");
+                tempList = connection.Query<DbModelOrder>(@"select * from orderpee,item,order_item where orderpee.ID=order_item.OrderID and item.ID=order_item.ItemID");
                 sw.Stop();
                 oldLog.Debug("Query all data in: " + sw.ElapsedMilliseconds + " ms");
             }
-            if (list == null)
+            if (tempList == null)
             {
                 oldLog.Error("Cannot query database");
                 return;
             }
-            var arrOrder = list.ToArray();
+            var arrOrder = tempList.ToArray();
             Array.Sort(arrOrder, (x, y) =>
             {
                 if (y.OrderID == x.OrderID)
@@ -528,7 +528,6 @@ namespace BoughtItems.UI_Merge
                 writer.RenderBeginTag(HtmlTextWriterTag.Tr);
                 writer.WriteLine("<th width=\"40\">No</th>");
                 writer.WriteLine("<th width=\"150\">Image</th>");
-                writer.WriteLine("<th width=\"150\">Local Image</th>");
                 writer.WriteLine("<th>Item (" + arrOrder.Count() + ") </th>");
 
                 long superTotalActualPrice = arrOrder.Sum(i => i.ActualPrice * i.Quantity);
@@ -548,45 +547,38 @@ namespace BoughtItems.UI_Merge
                 writer.RenderBeginTag(HtmlTextWriterTag.Tbody);
                 count = 0;
 
-                foreach (var order in arrOrder)
+                foreach (var item in arrOrder)
                 {
-                    long totalActualPrice = arrOrder.Where(i => i.OrderID == order.OrderID).Sum(i => i.ActualPrice * i.Quantity);
-                    foreach (ItemInfo item in order.ListItems)
+                    long totalActualPrice = arrOrder.Where(i => i.OrderID == item.OrderID).Sum(i => i.ActualPrice * i.Quantity);
+
+                    writer.RenderBeginTag(HtmlTextWriterTag.Tr);
+
+                    ++count;
+                    writer.WriteLine("<td>" + count + "</td>");
+                    writer.WriteLine(string.Format("<td><img class=\"item_image\" src=\"{0}\"/></td>", item.ImageURL));
+
+                    //item content
+                    writer.RenderBeginTag(HtmlTextWriterTag.Td);
+                    writer.RenderBeginTag(HtmlTextWriterTag.Div);
+                    writer.WriteLine("<div class=\"item_name\">" + item.Name + "</div>");
+                    if (item.Detail.Length > 0)
                     {
-                        writer.RenderBeginTag(HtmlTextWriterTag.Tr);
-
-                        ++count;
-                        writer.WriteLine("<td>" + count + "</td>");
-                        writer.WriteLine(string.Format("<td><img class=\"item_image\" src=\"{0}\"/></td>", item.ImageURL));
-                        if (!dict.TryGetValue(item.LocalImageName, out string subFolderName))
-                        {
-                            subFolderName = "";
-                        }
-                        writer.WriteLine(string.Format("<td><img class=\"item_image\" src=\"{0}\"/></td>", IMAGE_FOLDER_NAME + "/" + subFolderName + (subFolderName.Length > 0 ? "/" : "") + item.LocalImageName));
-
-                        //item content
-                        writer.RenderBeginTag(HtmlTextWriterTag.Td);
-                        writer.RenderBeginTag(HtmlTextWriterTag.Div);
-                        writer.WriteLine("<div class=\"item_name\">" + item.ItemName + "</div>");
-                        if (item.ItemDetails.Length > 0)
-                        {
-                            writer.WriteLine("<div class=\"item_details\">Loại: " + item.ItemDetails + "</div>");
-                        }
-                        if (item.NumberOfItem >= 2)
-                        {
-                            writer.WriteLine("<div class=\"item_details\">Số lượng: " + item.NumberOfItem + "</div>");
-                        }
-                        writer.RenderEndTag(); //end div
-                        writer.RenderEndTag(); //end td
-
-                        writer.WriteLine("<td>" + string.Format("{0:n0}", item.ActualPrice) + "</td>");
-                        writer.WriteLine("<td>" + string.Format("{0:n0}", totalActualPrice == 0 ? item.ActualPrice : item.ActualPrice * order.TotalPrice / totalActualPrice) + "</td>");
-                        writer.WriteLine(string.Format("<td><a href=\"{0}\" target=\"_blank\">{1}</a></td>", order.OrderURL, order.ID));
-                        writer.WriteLine(string.Format("<td><a href=\"{0}\" target=\"_blank\">{1}</a></td>", order.ShopURL, order.ShopName));
-                        writer.WriteLine("<td>" + order.UserName + "</td>");
-
-                        writer.RenderEndTag(); //end tr
+                        writer.WriteLine("<div class=\"item_details\">Loại: " + item.Detail + "</div>");
                     }
+                    if (item.Quantity >= 2)
+                    {
+                        writer.WriteLine("<div class=\"item_details\">Số lượng: " + item.Quantity + "</div>");
+                    }
+                    writer.RenderEndTag(); //end div
+                    writer.RenderEndTag(); //end td
+
+                    writer.WriteLine("<td>" + string.Format("{0:n0}", item.ActualPrice) + "</td>");
+                    writer.WriteLine("<td>" + string.Format("{0:n0}", totalActualPrice == 0 ? item.ActualPrice : item.ActualPrice * item.TotalPrice / totalActualPrice) + "</td>");
+                    writer.WriteLine(string.Format("<td><a href=\"{0}\" target=\"_blank\">{1}</a></td>", item.URL, item.OrderID));
+                    writer.WriteLine(string.Format("<td><a href=\"{0}\" target=\"_blank\">{1}</a></td>", item.ShopURL, item.ShopName));
+                    writer.WriteLine("<td>" + item.UserName + "</td>");
+
+                    writer.RenderEndTag(); //end tr
                 }
                 writer.RenderEndTag(); //end tbody
                 writer.RenderEndTag(); //end table
@@ -595,21 +587,18 @@ namespace BoughtItems.UI_Merge
             }
             File.WriteAllText(outputFile, stringWriter.ToString());
 
-            List<string> list = new List<string>();
+            List<string> listExcelText = new List<string>();
             const string TAB = "\t";
 
-            list.Add(string.Join(TAB, "No", "Item", "Quantity", "Actual Price", "Total Price", "Order", "Shop", "User"));
+            listExcelText.Add(string.Join(TAB, "No", "Item", "Quantity", "Actual Price", "Total Price", "Order", "Shop", "User"));
             count = 0;
-            foreach (OrderInfo order in ListOrders)
+            foreach (var item in arrOrder)
             {
-                foreach (ItemInfo item in order.ListItems)
-                {
-                    ++count;
-                    list.Add(string.Join(TAB, count, item.ItemName.Replace("\r", "").Replace("\n", "") + (item.ItemDetails.Length > 0 ? (" | " + item.ItemDetails) : ""), item.NumberOfItem, item.ActualPrice, item.ActualPrice * item.NumberOfItem, order.ID, order.ShopName, order.UserName));
-                }
+                ++count;
+                listExcelText.Add(string.Join(TAB, count, item.Name.Replace("\r", "").Replace("\n", "") + (item.Detail.Length > 0 ? (" | " + item.Detail) : ""), item.Quantity, item.ActualPrice, item.ActualPrice * item.Quantity, item.OrderID, item.ShopName, item.UserName));
             }
             string newPath = outputFile.Replace(Path.GetExtension(outputFile), "") + "_excel.txt";
-            File.WriteAllText(newPath, string.Join(Environment.NewLine, list));
+            File.WriteAllText(newPath, string.Join(Environment.NewLine, listExcelText));
         }
 
         private List<OrderInfo> ImportDatabase(string path)
