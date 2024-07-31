@@ -209,16 +209,17 @@ namespace BoughtItems.UI_Merge
             IsTaskIdle = false;
             await Task.Run(() =>
             {
+                //2024.07.31: Don't need to backup because file creation is very fast
                 //backup HTML file
-                const string BACKUP_FOLDER = "backup";
-                _ = Directory.CreateDirectory(Path.Combine(directory, BACKUP_FOLDER));
-                string backupName = Path.GetFileNameWithoutExtension(name);
-                backupName = backupName + "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + Path.GetExtension(name);
-                backupName = Path.Combine(Path.GetDirectoryName(name), BACKUP_FOLDER, backupName);
-                if (File.Exists(name))
-                {
-                    File.Copy(name, backupName, true);
-                }
+                //const string BACKUP_FOLDER = "backup";
+                //_ = Directory.CreateDirectory(Path.Combine(directory, BACKUP_FOLDER));
+                //string backupName = Path.GetFileNameWithoutExtension(name);
+                //backupName = backupName + "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + Path.GetExtension(name);
+                //backupName = Path.Combine(Path.GetDirectoryName(name), BACKUP_FOLDER, backupName);
+                //if (File.Exists(name))
+                //{
+                //    File.Copy(name, backupName, true);
+                //}
 
                 //create HTML
                 Stopwatch sw = Stopwatch.StartNew();
