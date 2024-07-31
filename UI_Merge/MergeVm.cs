@@ -240,6 +240,10 @@ namespace BoughtItems.UI_Merge
                     {
                         if (y.OrderID == x.OrderID)
                         {
+                            if (x.Name.Equals(y.Name))
+                            {
+                                return x.Detail.CompareTo(y.Detail);
+                            }
                             return x.Name.CompareTo(y.Name);
                         }
                         return y.OrderID.CompareTo(x.OrderID);
@@ -247,6 +251,21 @@ namespace BoughtItems.UI_Merge
                     string offlineHTMLName = name.Replace(".html", "_offline.html");
                     CreateHTML(arrOrder, name, false);
                     CreateHTML(arrOrder, offlineHTMLName, true);
+
+                    //export to excel
+                    List<string> listExcelText = new List<string>();
+                    const string TAB = "\t";
+                    //remove count column in _offline file
+                    listExcelText.Add(string.Join(TAB, "Item", "Quantity", "Actual Price", "Total Price", "Order", "Shop", "User"));
+                    int count = 0;
+                    foreach (var item in arrOrder)
+                    {
+                        ++count;
+                        //remove count column in _offline file
+                        listExcelText.Add(string.Join(TAB, item.Name.Replace("\r", "").Replace("\n", "") + (item.Detail.Length > 0 ? (" | " + item.Detail) : ""), item.Quantity, item.ActualPrice, item.ActualPrice * item.Quantity, item.OrderID, item.ShopName, item.UserName));
+                    }
+                    string newPath = name.Replace(Path.GetExtension(name), "") + "_excel.txt";
+                    File.WriteAllText(newPath, string.Join(Environment.NewLine, listExcelText));
                     oldLog.Debug("Exported to HTML file: " + name + " and " + offlineHTMLName);
                 }
             });
@@ -353,35 +372,6 @@ namespace BoughtItems.UI_Merge
                 writer.RenderEndTag(); //end HTML
             }
             File.WriteAllText(outputFile, stringWriter.ToString());
-
-            List<string> listExcelText = new List<string>();
-            const string TAB = "\t";
-
-            if (includeLocalImage)
-            {
-                //remove count column in _offline file
-                listExcelText.Add(string.Join(TAB, "Item", "Quantity", "Actual Price", "Total Price", "Order", "Shop", "User"));
-            }
-            else
-            {
-                listExcelText.Add(string.Join(TAB, "No", "Item", "Quantity", "Actual Price", "Total Price", "Order", "Shop", "User"));
-            }
-            count = 0;
-            foreach (var item in arrOrder)
-            {
-                ++count;
-                if (includeLocalImage)
-                {
-                    //remove count column in _offline file
-                    listExcelText.Add(string.Join(TAB, item.Name.Replace("\r", "").Replace("\n", "") + (item.Detail.Length > 0 ? (" | " + item.Detail) : ""), item.Quantity, item.ActualPrice, item.ActualPrice * item.Quantity, item.OrderID, item.ShopName, item.UserName));
-                }
-                else
-                {
-                    listExcelText.Add(string.Join(TAB, count, item.Name.Replace("\r", "").Replace("\n", "") + (item.Detail.Length > 0 ? (" | " + item.Detail) : ""), item.Quantity, item.ActualPrice, item.ActualPrice * item.Quantity, item.OrderID, item.ShopName, item.UserName));
-                }
-            }
-            string newPath = outputFile.Replace(Path.GetExtension(outputFile), "") + "_excel.txt";
-            File.WriteAllText(newPath, string.Join(Environment.NewLine, listExcelText));
         }
 
         private static List<OrderInfo> ImportJSONDatabase(string path)
