@@ -46,6 +46,12 @@ namespace BoughtItems.UI_Merge
                 TxtDatabaseFile.Text = Properties.Settings.Default.DatabasePath;
             }
             BtnAutoLoad_Click(null, null);
+
+#if DEBUG
+            StackDebug.IsEnabled = true;
+#else
+            StackDebug.IsEnabled = false;
+#endif
         }
 
         private MergeVm context;
