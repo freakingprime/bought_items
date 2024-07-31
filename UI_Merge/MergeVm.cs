@@ -329,10 +329,35 @@ namespace BoughtItems.UI_Merge
                 }
 
                 //create HTML
-                string offlineHTMLName = name.Replace(".html", "_offline.html");
-                CreateHTML(name);
-                //CreateOfflineHTML(offlineHTMLName);
-                oldLog.Debug("Exported to HTML file: " + name + " and " + offlineHTMLName);
+                Stopwatch sw = Stopwatch.StartNew();
+                IEnumerable<DbModelOrder> tempList = null;
+                using (var connection = new SqliteConnection("Data Source=\"" + GetDatabasePath() + "\""))
+                {
+                    tempList = connection.Query<DbModelOrder>(@"select * from orderpee,item,order_item where orderpee.ID=order_item.OrderID and item.ID=order_item.ItemID");
+                }
+                sw.Stop();
+                oldLog.Debug("Query all data in: " + sw.ElapsedMilliseconds + " ms");
+                if (tempList == null)
+                {
+                    oldLog.Error("Cannot query database");
+                }
+                else
+                {
+                    var arrOrder = tempList.ToArray();
+                    Array.Sort(arrOrder, (x, y) =>
+                    {
+                        if (y.OrderID == x.OrderID)
+                        {
+                            return x.Name.CompareTo(y.Name);
+                        }
+                        return y.OrderID.CompareTo(x.OrderID);
+                    });
+                    string offlineHTMLName = name.Replace(".html", "_offline.html");
+                    CreateHTML(arrOrder, name, false);
+                    CreateHTML(arrOrder, offlineHTMLName, true);
+                    //CreateOfflineHTML(offlineHTMLName);
+                    oldLog.Debug("Exported to HTML file: " + name + " and " + offlineHTMLName);
+                }
             });
             oldLog.SetValueProgress(0);
             IsTaskIdle = true;
@@ -472,30 +497,8 @@ namespace BoughtItems.UI_Merge
             File.WriteAllText(newPath, string.Join(Environment.NewLine, list));
         }
 
-        private void CreateHTML(string outputFile)
+        private void CreateHTML(DbModelOrder[] arrOrder, string outputFile, bool includeLocalImage)
         {
-            Stopwatch sw = Stopwatch.StartNew();
-            IEnumerable<DbModelOrder> tempList = null;
-            using (var connection = new SqliteConnection("Data Source=\"" + GetDatabasePath() + "\""))
-            {
-                tempList = connection.Query<DbModelOrder>(@"select * from orderpee,item,order_item where orderpee.ID=order_item.OrderID and item.ID=order_item.ItemID");
-                sw.Stop();
-                oldLog.Debug("Query all data in: " + sw.ElapsedMilliseconds + " ms");
-            }
-            if (tempList == null)
-            {
-                oldLog.Error("Cannot query database");
-                return;
-            }
-            var arrOrder = tempList.ToArray();
-            Array.Sort(arrOrder, (x, y) =>
-            {
-                if (y.OrderID == x.OrderID)
-                {
-                    return x.Name.CompareTo(y.Name);
-                }
-                return y.OrderID.CompareTo(x.OrderID);
-            });
             StringWriter stringWriter = new StringWriter();
             const int IMAGE_SIZE = 150;
             int count = 0;
@@ -555,7 +558,14 @@ namespace BoughtItems.UI_Merge
 
                     ++count;
                     writer.WriteLine("<td>" + count + "</td>");
-                    writer.WriteLine(string.Format("<td><img class=\"item_image\" src=\"{0}\"/></td>", item.ImageURL));
+                    if (includeLocalImage)
+                    {
+                        writer.WriteLine(string.Format("<td><img class=\"item_image\" src=\"data:image/jpeg;base64,{0}\"/></td>", item.ImageData));
+                    }
+                    else
+                    {
+                        writer.WriteLine(string.Format("<td><img class=\"item_image\" src=\"{0}\"/></td>", item.ImageURL));
+                    }
 
                     //item content
                     writer.RenderBeginTag(HtmlTextWriterTag.Td);
