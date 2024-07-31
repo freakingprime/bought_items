@@ -33,28 +33,10 @@ namespace BoughtItems.UI_Merge
         public MergeVm()
         {
             IsTaskIdle = true;
-            DownloadButtonEnabled = true;
-            IsUseDatabase = true;
             IsExportDefaultFilename = true;
         }
 
         #region Bind properties
-
-        private bool _isUseDatabase;
-
-        public bool IsUseDatabase
-        {
-            get { return _isUseDatabase; }
-            set { SetValue(ref _isUseDatabase, value); }
-        }
-
-        private int _progressValue;
-
-        public int ProgressValue
-        {
-            get { return _progressValue; }
-            set { SetValue(ref _progressValue, value); }
-        }
 
         private bool _isTaskIdle;
 
@@ -62,14 +44,6 @@ namespace BoughtItems.UI_Merge
         {
             get { return _isTaskIdle; }
             set { SetValue(ref _isTaskIdle, value); }
-        }
-
-        private bool _downloadButtonEnabled;
-
-        public bool DownloadButtonEnabled
-        {
-            get { return _downloadButtonEnabled; }
-            set { SetValue(ref _downloadButtonEnabled, value); }
         }
 
         private string _txtDatabasePath;
@@ -90,10 +64,7 @@ namespace BoughtItems.UI_Merge
         {
             get
             {
-                if (_httpSingleton == null)
-                {
-                    _httpSingleton = new HttpClient();
-                }
+                _httpSingleton ??= new HttpClient();
                 return _httpSingleton;
             }
         }
@@ -115,8 +86,7 @@ namespace BoughtItems.UI_Merge
 
         public void Loaded()
         {
-            //LoadDataFromFile(@"D:\DOWNLOAD\Shopee.html", workerMerge, 0, 1);
-            //CreateHTML(@"D:\DOWNLOAD\test.html");
+            //do nothing
         }
 
         private string GetNode(string type, string nameClass)
@@ -173,23 +143,6 @@ namespace BoughtItems.UI_Merge
             string[] files = Properties.Settings.Default.HtmlFiles.Split(FILENAME_SEPERATOR).Select(i => i.Trim()).Where(i => File.Exists(i)).ToArray();
             int count = 0;
             int size = files.Length;
-
-            //2024.07.30: We don't need to download images, just get content directly from internet
-            //string imageFolderPath = Path.Combine(Properties.Settings.Default.DatabaseDirectory, Properties.Resources.TEMP_IMAGE_FOLDER);
-            //var di = new DirectoryInfo(imageFolderPath);
-            //try
-            //{
-            //    if (di.Exists)
-            //    {
-            //        di.Delete(true);
-            //    }
-            //    di.Create();
-            //}
-            //catch (Exception e1)
-            //{
-            //    oldLog.Error("Cannot create temporary folder at: " + di.FullName, e1);
-            //}
-
             await Parallel.ForEachAsync(files, (path, _) =>
             {
                 try
@@ -210,72 +163,11 @@ namespace BoughtItems.UI_Merge
             });
             oldLog.Debug("Number of orders: " + bagOrder.Count);
             oldLog.SetValueProgress(0);
-
             await Task.Run(() =>
             {
-                InsertToDatabase(bagOrder);
+                InsertOrderInfoToDatabase(bagOrder);
             });
-
             IsTaskIdle = true;
-        }
-
-        public void ButtonMoveImages()
-        {
-            const int MAX_FILE = 200;
-            DirectoryInfo di = new DirectoryInfo(Path.Combine(Properties.Settings.Default.DatabaseDirectory, IMAGE_FOLDER_NAME));
-            if (!di.Exists)
-            {
-                di.Create();
-            }
-            DirectoryInfo[] arrSubDir = di.GetDirectories("*", SearchOption.TopDirectoryOnly);
-            FileInfo[] tempArr;
-
-            //move file out of sub folder if there's too many file in sub folder
-            for (int i = 0; i < arrSubDir.Length; ++i)
-            {
-                tempArr = arrSubDir[i].GetFiles("*");
-                if (tempArr.Length > MAX_FILE)
-                {
-                    for (int j = MAX_FILE; j < tempArr.Length; ++j)
-                    {
-                        File.Move(tempArr[j].FullName, Path.Combine(di.FullName, tempArr[j].Name));
-                    }
-                }
-            }
-
-            //move file into current sub folders
-            tempArr = di.GetFiles("*", SearchOption.TopDirectoryOnly);
-            int index = 0;
-            for (int i = 0; i < arrSubDir.Length; ++i)
-            {
-                int count = arrSubDir[i].GetFiles("*").Length;
-                while (count < MAX_FILE && index < tempArr.Length)
-                {
-                    File.Move(tempArr[index].FullName, Path.Combine(arrSubDir[i].FullName, tempArr[index].Name));
-                    ++index;
-                    ++count;
-                }
-            }
-
-            //create more sub folders and copy file into it
-            tempArr = di.GetFiles("*", SearchOption.TopDirectoryOnly);
-            index = 0;
-            int newFolderSuffix = arrSubDir.Length;
-            while (index < tempArr.Length)
-            {
-                DirectoryInfo newDirInfo = new DirectoryInfo(Path.Combine(di.FullName, IMAGE_FOLDER_NAME + newFolderSuffix++));
-                if (!newDirInfo.Exists)
-                {
-                    newDirInfo.Create();
-                }
-                int count = 0;
-                while (count < MAX_FILE && index < tempArr.Length)
-                {
-                    File.Move(tempArr[index].FullName, Path.Combine(newDirInfo.FullName, tempArr[index].Name));
-                    ++index;
-                    ++count;
-                }
-            }
         }
 
         public async void ButtonExportToHTML()
@@ -355,7 +247,6 @@ namespace BoughtItems.UI_Merge
                     string offlineHTMLName = name.Replace(".html", "_offline.html");
                     CreateHTML(arrOrder, name, false);
                     CreateHTML(arrOrder, offlineHTMLName, true);
-                    //CreateOfflineHTML(offlineHTMLName);
                     oldLog.Debug("Exported to HTML file: " + name + " and " + offlineHTMLName);
                 }
             });
@@ -363,141 +254,7 @@ namespace BoughtItems.UI_Merge
             IsTaskIdle = true;
         }
 
-        private void CreateOfflineHTML(string outputFile)
-        {
-            List<OrderInfo> ListOrders = new List<OrderInfo>();
-            StringWriter stringWriter = new StringWriter();
-            const int IMAGE_SIZE = 150;
-            int count = 0;
-            using (HtmlTextWriter writer = new HtmlTextWriter(stringWriter))
-            {
-                writer.RenderBeginTag(HtmlTextWriterTag.Html);
-
-                writer.RenderBeginTag(HtmlTextWriterTag.Head);
-
-                writer.AddAttribute("charset", "UTF-8");
-                writer.RenderBeginTag(HtmlTextWriterTag.Meta);
-                writer.RenderEndTag();
-
-                writer.RenderBeginTag(HtmlTextWriterTag.Style);
-                writer.WriteLine("img.item_image {width: " + IMAGE_SIZE + "px;height: " + IMAGE_SIZE + "px}");
-                writer.WriteLine("table {border-collapse: collapse; table-layout: fixed}");
-                writer.WriteLine("th, td {border: 1px solid black; padding: 5px; word-break: break-all; word-wrap: break-word; white-space: normal}");
-                writer.RenderEndTag();
-                writer.RenderEndTag();
-
-                writer.RenderBeginTag(HtmlTextWriterTag.Body);
-                writer.AddAttribute(HtmlTextWriterAttribute.Width, "1250");
-                writer.RenderBeginTag(HtmlTextWriterTag.Table);
-
-                writer.RenderBeginTag(HtmlTextWriterTag.Thead);
-
-                //check new git
-
-                writer.RenderBeginTag(HtmlTextWriterTag.Tr);
-                writer.WriteLine("<th width=\"40\">No</th>");
-                writer.WriteLine("<th width=\"150\">Local Image</th>");
-                writer.WriteLine("<th>Item (" + ListOrders.Sum(i => i.ListItems.Count) + ") </th>");
-
-                long superTotalActualPrice = ListOrders.Sum(i => i.ListItems.Sum(j => j.ActualPrice * j.NumberOfItem));
-                writer.WriteLine("<th width=\"70\">Price (" + superTotalActualPrice.ToString("N0") + ") </th>");
-
-                //2021.11.14: Add recuded money
-                long totalPaid = ListOrders.Sum(i => i.TotalPrice);
-                writer.WriteLine("<th width=\"70\">Paid (Saved " + (superTotalActualPrice - totalPaid).ToString("N0") + ") </th>");
-
-                writer.WriteLine("<th width=\"125\">Order (" + ListOrders.GroupBy(i => i.OrderURL).Select(group => group.First()).Count() + ") </th>");
-                writer.WriteLine("<th width=\"120\">Shop (" + ListOrders.GroupBy(i => i.ShopURL).Select(g => g.First()).Count() + ") </th>");
-                writer.WriteLine("<th width=\"120\">User</th>");
-                writer.RenderEndTag(); //end tr
-
-                writer.RenderEndTag(); //end thead
-
-                writer.RenderBeginTag(HtmlTextWriterTag.Tbody);
-                count = 0;
-
-                //create local file name database
-                Dictionary<string, string> dict = new Dictionary<string, string>();
-                DirectoryInfo di = new DirectoryInfo(Path.Combine(Properties.Settings.Default.DatabaseDirectory, IMAGE_FOLDER_NAME));
-                if (di.Exists)
-                {
-                    var subDirs = di.GetDirectories("*");
-                    foreach (var imageDir in subDirs)
-                    {
-                        var files = imageDir.GetFiles("*");
-                        foreach (var file in files)
-                        {
-                            dict[file.Name] = imageDir.Name;
-                        }
-                    }
-                }
-
-                foreach (OrderInfo order in ListOrders)
-                {
-                    long totalActualPrice = order.ListItems.Sum(i => i.ActualPrice * i.NumberOfItem);
-                    foreach (ItemInfo item in order.ListItems)
-                    {
-                        writer.RenderBeginTag(HtmlTextWriterTag.Tr);
-
-                        ++count;
-                        writer.WriteLine("<td>" + count + "</td>");
-                        if (!dict.TryGetValue(item.LocalImageName, out string subFolderName))
-                        {
-                            subFolderName = "";
-                        }
-                        string imageLocalPath = IMAGE_FOLDER_NAME + "/" + subFolderName + (subFolderName.Length > 0 ? "/" : "") + item.LocalImageName;
-                        imageLocalPath = Path.Combine(Path.GetDirectoryName(outputFile), imageLocalPath);
-                        writer.WriteLine(string.Format("<td><img class=\"item_image\" src=\"data:image/jpeg;base64,{0}\"/></td>", File.Exists(imageLocalPath) ? Convert.ToBase64String(File.ReadAllBytes(imageLocalPath)) : ""));
-
-                        //item content
-                        writer.RenderBeginTag(HtmlTextWriterTag.Td);
-                        writer.RenderBeginTag(HtmlTextWriterTag.Div);
-                        writer.WriteLine("<div class=\"item_name\">" + item.ItemName + "</div>");
-                        if (item.ItemDetails.Length > 0)
-                        {
-                            writer.WriteLine("<div class=\"item_details\">Loại: " + item.ItemDetails + "</div>");
-                        }
-                        if (item.NumberOfItem >= 2)
-                        {
-                            writer.WriteLine("<div class=\"item_details\">Số lượng: " + item.NumberOfItem + "</div>");
-                        }
-                        writer.RenderEndTag(); //end div
-                        writer.RenderEndTag(); //end td
-
-                        writer.WriteLine("<td>" + string.Format("{0:n0}", item.ActualPrice) + "</td>");
-                        writer.WriteLine("<td>" + string.Format("{0:n0}", totalActualPrice == 0 ? item.ActualPrice : item.ActualPrice * order.TotalPrice / totalActualPrice) + "</td>");
-                        writer.WriteLine(string.Format("<td><a href=\"{0}\" target=\"_blank\">{1}</a></td>", order.OrderURL, order.ID));
-                        writer.WriteLine(string.Format("<td><a href=\"{0}\" target=\"_blank\">{1}</a></td>", order.ShopURL, order.ShopName));
-                        writer.WriteLine("<td>" + order.UserName + "</td>");
-
-                        writer.RenderEndTag(); //end tr
-                    }
-                }
-                writer.RenderEndTag(); //end tbody
-                writer.RenderEndTag(); //end table
-                writer.RenderEndTag(); //end body
-                writer.RenderEndTag(); //end HTML
-            }
-            File.WriteAllText(outputFile, stringWriter.ToString());
-
-            List<string> list = new List<string>();
-            const string TAB = "\t";
-
-            list.Add(string.Join(TAB, "No", "Item", "Quantity", "Actual Price", "Total Price", "Order", "Shop", "User"));
-            count = 0;
-            foreach (OrderInfo order in ListOrders)
-            {
-                foreach (ItemInfo item in order.ListItems)
-                {
-                    ++count;
-                    list.Add(string.Join(TAB, count, item.ItemName.Replace("\r", "").Replace("\n", "") + (item.ItemDetails.Length > 0 ? (" | " + item.ItemDetails) : ""), item.NumberOfItem, item.ActualPrice, item.ActualPrice * item.NumberOfItem, order.ID, order.ShopName, order.UserName));
-                }
-            }
-            string newPath = outputFile.Replace(Path.GetExtension(outputFile), "") + "_excel.txt";
-            File.WriteAllText(newPath, string.Join(Environment.NewLine, list));
-        }
-
-        private void CreateHTML(DbModelOrder[] arrOrder, string outputFile, bool includeLocalImage)
+        private static void CreateHTML(DbModelOrder[] arrOrder, string outputFile, bool includeLocalImage)
         {
             StringWriter stringWriter = new StringWriter();
             const int IMAGE_SIZE = 150;
@@ -611,7 +368,7 @@ namespace BoughtItems.UI_Merge
             File.WriteAllText(newPath, string.Join(Environment.NewLine, listExcelText));
         }
 
-        private List<OrderInfo> ImportDatabase(string path)
+        private static List<OrderInfo> ImportJSONDatabase(string path)
         {
             List<OrderInfo> ret = new List<OrderInfo>();
             HashSet<long> HashOrderID = new HashSet<long>();
@@ -834,7 +591,7 @@ namespace BoughtItems.UI_Merge
             return ret;
         }
 
-        private void InsertToDatabase(IEnumerable<OrderInfo> list)
+        private void InsertOrderInfoToDatabase(IEnumerable<OrderInfo> list)
         {
             Stopwatch sw = Stopwatch.StartNew();
             oldLog.Debug("Begin insert " + list.Count() + " order to database...");
@@ -886,7 +643,23 @@ namespace BoughtItems.UI_Merge
         internal void ButtonInitDatabase()
         {
             Stopwatch sw = Stopwatch.StartNew();
-            var ListOrders = ImportDatabase(Properties.Settings.Default.DatabasePath);
+            OpenFileDialog dialog = new OpenFileDialog()
+            {
+                InitialDirectory = Properties.Settings.Default.DatabaseDirectory,
+                Filter = "JSON File|*.json",
+                CheckFileExists = true,
+            };
+            string jsonPath = "";
+            if (dialog.ShowDialog() == true)
+            {
+                jsonPath = dialog.FileName;
+            }
+            else
+            {
+                oldLog.Error("No JSON file is selected");
+                return;
+            }
+            var listOrder = ImportJSONDatabase(jsonPath);
             int orderRow = 0;
             int itemRow = 0;
             int orderItemRow = 0;
@@ -911,7 +684,7 @@ namespace BoughtItems.UI_Merge
             {
                 connection.Open();
                 var transaction = connection.BeginTransaction();
-                foreach (var order in ListOrders)
+                foreach (var order in listOrder)
                 {
                     orderRow += connection.Execute(@"INSERT OR IGNORE INTO orderpee (ID,URL,TotalPrice,UserName,ShopName,ShopURL) VALUES (@ID,@URL,@TotalPrice,@UserName,@ShopName,@ShopURL)", new { order.ID, URL = order.OrderURL, TotalPrice = (int)order.TotalPrice, order.UserName, order.ShopName, order.ShopURL });
                     foreach (var item in order.ListItems)
@@ -928,7 +701,7 @@ namespace BoughtItems.UI_Merge
                 }
                 transaction.Commit();
                 transaction = connection.BeginTransaction();
-                foreach (var order in ListOrders)
+                foreach (var order in listOrder)
                 {
                     foreach (var item in order.ListItems)
                     {
@@ -972,6 +745,5 @@ namespace BoughtItems.UI_Merge
             TxtDatabasePath = targetPath;
             return targetPath;
         }
-
     }
 }

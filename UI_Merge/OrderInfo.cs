@@ -39,7 +39,7 @@ namespace BoughtItems.UI_Merge
 
         public int CompareTo(OrderInfo other)
         {
-            return ID.CompareTo(other.ID);
+            return other.ID.CompareTo(ID);
         }
 
         public override string ToString()

@@ -113,7 +113,7 @@
                 <StackPanel Orientation="Horizontal"
                             IsEnabled="{Binding IsTaskIdle}">
                     <Button x:Name="BtnMerge"
-                            Content="Merge"
+                            Content="Merge from HTML"
                             Click="BtnMerge_Click" />
                     <Button x:Name="BtnExportToHTML"
                             Content="Export to HTML"

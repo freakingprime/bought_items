@@ -6,10 +6,8 @@ using System.Threading.Tasks;
 
 namespace BoughtItems.UI_Merge
 {
-    public class ItemInfo
+    public class ItemInfo : IComparable<ItemInfo>
     {
-        private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType.Name);
-
         public ItemInfo()
         {
 
@@ -17,7 +15,6 @@ namespace BoughtItems.UI_Merge
 
         #region Normal properties
 
-        public long ID = 0;
         public string ItemName = string.Empty;
         public string ItemDetails = string.Empty;
         public long ActualPrice = 0;
@@ -39,6 +36,11 @@ namespace BoughtItems.UI_Merge
         public override string ToString()
         {
             return ItemName + " " + ActualPrice + " x" + NumberOfItem;
+        }
+
+        public int CompareTo(ItemInfo other)
+        {
+            return ItemName.CompareTo(other.ItemName);
         }
     }
 }
