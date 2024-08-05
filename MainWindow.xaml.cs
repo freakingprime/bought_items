@@ -32,6 +32,9 @@ namespace BoughtItems
             oldLog.SetTextBox(TxtLog);
             oldLog.SetProgressBar(TheProgresBar);
             oldLog.SetLabelPercentage(TxtProgress);
+#if DEBUG
+            TabMain.SelectedIndex = 1;
+#endif
         }
 
         private MainWindowVm context = new MainWindowVm();

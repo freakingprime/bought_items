@@ -107,22 +107,24 @@
                     <CheckBox Content="Export to Summary.html"
                               IsChecked="{Binding IsExportDefaultFilename}" />
                 </StackPanel>
-
-                <StackPanel Orientation="Horizontal"
-                            IsEnabled="{Binding IsTaskIdle}">
+                <WrapPanel Orientation="Horizontal"
+                           IsEnabled="{Binding IsTaskIdle}">
                     <Button x:Name="BtnMerge"
                             Content="Merge from HTML"
                             Click="BtnMerge_Click" />
                     <Button x:Name="BtnExportToHTML"
                             Content="Export to HTML"
                             Click="BtnExportToHTML_Click" />
-                </StackPanel>
-                <StackPanel Orientation="Horizontal"
-                            Name="StackDebug">
-                    <Button x:Name="BtnInitDatabase"
-                            Content="Init Database"
-                            Click="BtnInitDatabase_Click" />
-                </StackPanel>
+                    <WrapPanel Orientation="Horizontal"
+                               Name="StackDebug">
+                        <Button x:Name="BtnInitDatabase"
+                                Content="Init Database"
+                                Click="BtnInitDatabase_Click" />
+                        <Button x:Name="BtnLazada"
+                                Content="Get from Lazada"
+                                Click="BtnLazada_Click" />
+                    </WrapPanel>
+                </WrapPanel>
             </StackPanel>
         </GroupBox>
     </StackPanel>
