@@ -753,45 +753,6 @@ namespace BoughtItems.UI_Merge
             }
             TxtDatabasePath = targetPath;
             return targetPath;
-        }
-
-        public void ButtonLazada()
-        {
-            oldLog.Debug("Fetch from Lazada");
-            //var request = new HttpRequestMessage(HttpMethod.Post, MyConstants.JL_HOME + "/ajax/ajax_cv_favoriteadd.php");
-            //request.Headers.TryAddWithoutValidation("Cookie", CookieStorage.GetValue(MyConstants.JL_CORE_URL));
-            //request.Headers.TryAddWithoutValidation("User-Agent", Properties.Settings.Default.UserAgent);
-            //var requestContent = new StringContent(@"type=2&targetid=" + ajaxid, Encoding.UTF8, "application/x-www-form-urlencoded");
-            //request.Content = requestContent;
-            //var response = HttpSingleton.Client.Send(request);
-            //if (response.IsSuccessStatusCode)
-            //{
-            //    string s = response.Content.ReadAsStringAsync().Result;
-            //    if (s.ToUpper().Contains("\"ERROR\":1"))
-            //    {
-            //        oldLog.Debug("Status " + response.StatusCode + ". Marked successfully for: " + code + " " + ajaxid);
-            //    }
-            //    else
-            //    {
-            //        oldLog.Error("Status " + response.StatusCode + ". Unsuccessful: " + code + " " + ajaxid);
-            //        lock (listFailedToMark)
-            //        {
-            //            listFailedToMark.Add(code + " " +
-            string allOrderUrl = @"https://my.lazada.vn/customer/order/index/?spm=a2o42.order_details.0.0.69b0705bySfbWe";
-            string cookie = @"__wpkreporterwid_=33c48868-50fb-42ad-8813-4ee13da7c993; client_type=desktop; t_fv=1629699266099; miidlaz=miidgg5t0c1ff456emd9v3; lwrid=AQGHE%2FRSLnlkGxfw%2BQ%2FFX39uI4vP; t_uid=845679ee-d6dd-48b8-dcf0-f4db43de49aa; lzd_cid=c3327aa5-98ff-44bd-b7c3-53eba9b6e2bb; lzd_click_id=clkgl3st31hg8jveu9n7rg; cna=rDkrHGuTN20CAXsYPjfoMA5+; hng=VN|vi|VND|704; hng.sig=EmlYr96z9MQGc5b9Jyf9txw1yLZDt_q0EWkckef954s; t_sid=jHKZJgSNYgRcvKU4NGbZAXYXaKNMuXK3; utm_channel=NA; _m_h5_tk=3be69f636f5c79c0cef55b57a3dc038f_1722874210113; _m_h5_tk_enc=8e513be8e295608100eeaac9daf163d9; lzd_sid=12f158d15b16c548a2ae3a6780414504; _tb_token_=eebab33b6ed63; lzd_uid=2670550; lzd_b_csg=3cee5bb2; sgcookie=E100z95nWhSUzEYdyjLMG3jyAzPPfc5SooZIVqTxBem7q4C3r4OXNraNqltCF6%2F4UAP73Xm2AWDJjC4JZZW3XW%2FUkz9z0Y2Kp%2BRpcw5iBdoGMH0%3D; lzd_uti=%7B%22fpd%22%3A%222024-07-05%22%2C%22lpd%22%3A%222024-07-09%22%2C%22cnt%22%3A%22198%22%7D; tfstk=fd3I0VVCw9XQTEh_Ekdaf3ZVPvzSPvT2y_N-ibQFwyUdeThYQzRh4HV7PRG44JUz4YNSgYbP8yK3NUMmFwrpK4zWyRkmTBjE98Q-ZxNz4yPzPVN7wkBr9z5njxlA82-3zaa3rzp23E8VtX4uy94BcIC3W7VQwUrLyRFGoL7w3E8q9XH8DIp2ZrL2k8F8yWERyfd_iS_8ykQRBCN8a9IRJYh9172OJaIdy5ETaWCdeAsRG7tQKXOOU7eK2wEx9R_jnVNdO-T0daIo5WG_HXKAya3_Ok3WPzNUsko-io0EWU_g8jiTWSlHRNax9SMUQxLA5PhZ6YrmjLb48Ag7cVrdwLqKdchq2lOpJfaQdouQcsjaR0HnPkmCZIcTJAm0nkKMI5gEuuw0fOpK_fwLc0MeIaeEcfH_0VWNuzDi2YFSB9sz3ZyXbKj51ob71-R61gjzZuYlCEDB45qLsWZw1C6KqkFg1-R61gx7v5VQbCO1pn1..; lwrtk=AAEEZrFKOunbvfoiEFpFexxuFsuUnc6rR03OyqGYxfSazrgSka0MGOo=; epssw=5*mmLprRB802gyxT0kNgh2ZLVD5TG47i1wJ4U_rH-7PNlF0ygmmmE-012__Kl_nDhKBCS9kHimsDMKHR0vgI9XzUsjb25i_ZC4mLg_JZB1nUCRbFUuc7a3mQ-2zRSLTQv89cYcdSitaynmAGmNWLsHdHrrTV87v2tdJnpsP8jfP8m-ZB2gvzMt035iGGm85K6q4lhUDsHGgU6gJn4r03gTQ1XI_XhmmmmmQJel-vZbvIldPIewNIk_m1RmeUrPye51Ld2oNPyQEm7JUNFdIkZIiPHVMFioiaC0eJWPxQ8L60pskvOmmTVAmg3NhBwAVYOENHeVrUwmmm..; isg=BK2taLGPt7wCLFT8gcYrLbnWvEknCuHcQBL7e--yRcSjZswYt1y3rX40VCKAZvmU";
-            string userAgent = @"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36";
-            var request = new HttpRequestMessage(HttpMethod.Get, allOrderUrl);
-            request.Headers.TryAddWithoutValidation("Cookie", cookie);
-            request.Headers.TryAddWithoutValidation("User-Agent", userAgent);
-            var response = HttpSingleton.Send(request);
-            if (response.IsSuccessStatusCode)
-            {
-                oldLog.Debug("Success");
-            }
-            else
-            {
-                oldLog.Error("Cannot get All Order page from Lazada");
-            }
-        }
+        }      
     }
 }

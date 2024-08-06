@@ -13,9 +13,45 @@
     <UserControl.DataContext>
         <local:LazadaVm />
     </UserControl.DataContext>
+    <UserControl.Resources>
+        <Style TargetType="{x:Type TextBox}">
+            <Setter Property="VerticalAlignment"
+                    Value="Center" />
+            <Setter Property="Margin"
+                    Value="1" />
+            <Setter Property="MinHeight"
+                    Value="25" />
+            <Setter Property="VerticalContentAlignment"
+                    Value="Center" />
+        </Style>
+        <Style TargetType="{x:Type TextBlock}">
+            <Setter Property="VerticalAlignment"
+                    Value="Center" />
+            <Setter Property="Margin"
+                    Value="1" />
+        </Style>
+        <Style TargetType="{x:Type Button}">
+            <Setter Property="VerticalAlignment"
+                    Value="Center" />
+            <Setter Property="Margin"
+                    Value="3" />
+            <Setter Property="Padding"
+                    Value="3" />
+            <Setter Property="MinWidth"
+                    Value="60" />
+            <Setter Property="Height"
+                    Value="25" />
+        </Style>
+    </UserControl.Resources>
     <StackPanel Orientation="Vertical">
-        <Grid Height="400">
-            <wv2:WebView2 Name="MainWebView" />
-        </Grid>
+        <wv2:WebView2 Name="MainWebView"
+                      Height="400"                      
+                      Initialized="MainWebView_Initialized"
+                      CoreWebView2InitializationCompleted="MainWebView_CoreWebView2InitializationCompleted"/>
+        <WrapPanel Orientation="Horizontal">
+            <Button x:Name="BtnLazada"
+                    Content="Get from Lazada"
+                    Click="BtnLazada_Click" />
+        </WrapPanel>
     </StackPanel>
 </UserControl>

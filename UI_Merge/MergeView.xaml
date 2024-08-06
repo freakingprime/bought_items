@@ -120,9 +120,7 @@
                         <Button x:Name="BtnInitDatabase"
                                 Content="Init Database"
                                 Click="BtnInitDatabase_Click" />
-                        <Button x:Name="BtnLazada"
-                                Content="Get from Lazada"
-                                Click="BtnLazada_Click" />
+                      
                     </WrapPanel>
                 </WrapPanel>
             </StackPanel>

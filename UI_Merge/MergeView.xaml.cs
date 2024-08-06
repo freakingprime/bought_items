@@ -174,9 +174,5 @@ namespace BoughtItems.UI_Merge
             context?.ButtonInitDatabase();
         }
 
-        private void BtnLazada_Click(object sender, RoutedEventArgs e)
-        {
-            context?.ButtonLazada();
-        }
     }
 }
