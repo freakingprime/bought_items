@@ -7,8 +7,8 @@
              xmlns:sys="clr-namespace:System;assembly=mscorlib"
              xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
              mc:Ignorable="d"
-             d:DesignHeight="450"
-             d:DesignWidth="800"
+             d:DesignHeight="700"
+             d:DesignWidth="1000"
              DataContextChanged="UserControl_DataContextChanged">
     <UserControl.DataContext>
         <local:LazadaVm />
@@ -45,10 +45,16 @@
     </UserControl.Resources>
     <StackPanel Orientation="Vertical">
         <wv2:WebView2 Name="MainWebView"
-                      Height="400"                      
+                      Height="600"
                       Initialized="MainWebView_Initialized"
-                      CoreWebView2InitializationCompleted="MainWebView_CoreWebView2InitializationCompleted"/>
+                      CoreWebView2InitializationCompleted="MainWebView_CoreWebView2InitializationCompleted" />
         <WrapPanel Orientation="Horizontal">
+            <Button x:Name="BtnGoLazada"
+                    Content="Open Lazada"
+                    Click="BtnGoLazada_Click" />
+            <Button x:Name="BtnGoUserAgent"
+                    Content="Open User Agent"
+                    Click="BtnGoUserAgent_Click" />
             <Button x:Name="BtnLazada"
                     Content="Get from Lazada"
                     Click="BtnLazada_Click" />
