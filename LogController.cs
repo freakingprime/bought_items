@@ -61,8 +61,11 @@ namespace BoughtItems
             {
                 t = 100;
             }
-            bar.Value = t;
-            labelPercentage.Content = additionText.Length > 0 ? t + "% (" + additionText + ")" : t + "%";
+            System.Windows.Application.Current.Dispatcher.Invoke(new Action(() =>
+            {
+                bar.Value = t;
+                labelPercentage.Content = additionText.Length > 0 ? t + "% (" + additionText + ")" : t + "%";
+            }));
         }
 
         private void PrintToTextbox(string s, string tag = "")

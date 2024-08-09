@@ -58,6 +58,12 @@
             <Button x:Name="BtnLazada"
                     Content="Get from Lazada"
                     Click="BtnLazada_Click" />
+            <Button x:Name="BtnFetchOrder"
+                    Content="Fetch Order"
+                    Click="BtnFetchOrder_Click" />
+            <Button x:Name="BtnImportFromFile"
+                    Content="Import from file"
+                    Click="BtnImportFromFile_Click" />
         </WrapPanel>
     </StackPanel>
 </UserControl>

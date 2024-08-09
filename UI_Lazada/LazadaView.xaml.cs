@@ -70,7 +70,11 @@ namespace BoughtItems.UI_Lazada
             var core = (CoreWebView2)sender;
 
             //cookie
-            List<CoreWebView2Cookie> listCookie = await core.CookieManager.GetCookiesAsync(@"lazada.vn");
+            List<CoreWebView2Cookie> listCookie = await core.CookieManager.GetCookiesAsync(@"https://lazada.vn");
+            if (listCookie.Count == 0)
+            {
+                listCookie = await core.CookieManager.GetCookiesAsync(@"https://my.lazada.vn");
+            }
             string temp = string.Join(";", listCookie.Select(i => i.Name + "=" + i.Value));
             if (!temp.Equals(Properties.Settings.Default.LazadaCookie))
             {
@@ -124,6 +128,16 @@ namespace BoughtItems.UI_Lazada
         private void BtnGoUserAgent_Click(object sender, RoutedEventArgs e)
         {
             MainWebView.Source = new Uri(@"https://www.whatismybrowser.com/");
+        }
+
+        private void BtnFetchOrder_Click(object sender, RoutedEventArgs e)
+        {
+            _context?.ButtonFetchOrderInfo();
+        }
+
+        private void BtnImportFromFile_Click(object sender, RoutedEventArgs e)
+        {
+            _context?.ButtonImportFromFile();
         }
     }
 }

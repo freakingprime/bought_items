@@ -87,8 +87,7 @@
                 <TextBox x:Name="TxtDatabaseFile"
                          Grid.Row="1"
                          Grid.Column="2"
-                         TextChanged="TxtDatabaseFile_TextChanged"
-                         Text="{Binding TxtDatabasePath,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" />
+                         TextChanged="TxtDatabaseFile_TextChanged" />
             </Grid>
         </GroupBox>
         <GroupBox Header="Control">
@@ -120,7 +119,7 @@
                         <Button x:Name="BtnInitDatabase"
                                 Content="Init Database"
                                 Click="BtnInitDatabase_Click" />
-                      
+
                     </WrapPanel>
                 </WrapPanel>
             </StackPanel>

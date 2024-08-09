@@ -47,10 +47,6 @@ namespace BoughtItems.UI_Merge
             set { SetValue(ref _isTaskIdle, value); }
         }
 
-        private string _txtDatabasePath;
-
-        public string TxtDatabasePath { get => _txtDatabasePath; set => SetValue(ref _txtDatabasePath, value); }
-
         private bool _isExportDefaultFilename;
 
         public bool IsExportDefaultFilename { get => _isExportDefaultFilename; set => SetValue(ref _isExportDefaultFilename, value); }
@@ -688,7 +684,6 @@ namespace BoughtItems.UI_Merge
                     }
                 }
             }
-
             using (var connection = new SqliteConnection("Data Source=\"" + GetDatabasePath() + "\""))
             {
                 connection.Open();
@@ -724,7 +719,7 @@ namespace BoughtItems.UI_Merge
             oldLog.Debug("Insert " + orderRow + " order and " + itemRow + " item and " + orderItemRow + " connection to DB in: " + sw.ElapsedMilliseconds + " ms");
         }
 
-        private string GetDatabasePath()
+        public static string GetDatabasePath()
         {
             string targetPath = Properties.Settings.Default.DatabasePath;
             if (!File.Exists(targetPath))
@@ -751,8 +746,7 @@ namespace BoughtItems.UI_Merge
             {
                 targetPath = "";
             }
-            TxtDatabasePath = targetPath;
             return targetPath;
-        }      
+        }
     }
 }
