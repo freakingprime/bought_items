@@ -22,6 +22,6 @@ namespace BoughtItems.UI_Merge
         public long ActualPrice;
         public long OriginalPrice;
         public int Quantity;
-        public long OrderID;
+        public string OrderID;
     }
 }

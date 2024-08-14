@@ -58,9 +58,6 @@
             <Button Name="BtnStop"
                     Content="STOP"
                     Click="BtnStop_Click" />
-            <Button x:Name="BtnLazada"
-                    Content="Get from Lazada"
-                    Click="BtnLazada_Click" />
             <Button x:Name="BtnFetchOrder"
                     Content="Fetch Order"
                     Click="BtnFetchOrder_Click" />

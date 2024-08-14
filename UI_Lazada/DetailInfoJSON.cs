@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace BoughtItems.UI_Lazada.DetailInfo
 {
-    internal class DetailInfoJSON
+    public class DetailInfoJSON
     {
     }
     // Root myDeserializedClass = JsonConvert.DeserializeObject<Root>(myJsonResponse);
@@ -105,7 +105,7 @@ namespace BoughtItems.UI_Lazada.DetailInfo
         public string key { get; set; }
     }
 
-    public class Root
+    public class DetailInfoRoot
     {
         public string id { get; set; }
         public string tag { get; set; }
@@ -117,7 +117,7 @@ namespace BoughtItems.UI_Lazada.DetailInfo
     {
         public string buttonText { get; set; }
         public string picUrl { get; set; }
-        public int quantity { get; set; }
+        public long quantity { get; set; }
         public string quantityPrefix { get; set; }
         public string itemTitle { get; set; }
         public string itemPrice { get; set; }

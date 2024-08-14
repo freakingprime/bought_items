@@ -55,17 +55,6 @@ namespace BoughtItems.UI_Merge
 
         #region Normal properties
 
-        private static HttpClient _httpSingleton;
-
-        public static HttpClient HttpSingleton
-        {
-            get
-            {
-                _httpSingleton ??= new HttpClient();
-                return _httpSingleton;
-            }
-        }
-
         private const string IMAGE_FOLDER_NAME = "images";
         private const string NONE_TEXT = "None";
         private readonly Regex regexOrderID = new Regex(@"\/order\/(\d+)");
@@ -162,7 +151,7 @@ namespace BoughtItems.UI_Merge
             oldLog.SetValueProgress(0);
             await Task.Run(() =>
             {
-                InsertOrderInfoToDatabase(bagOrder);
+                InsertOrderInfoToDatabase(bagOrder, false);
             });
             IsTaskIdle = true;
         }
@@ -224,6 +213,7 @@ namespace BoughtItems.UI_Merge
                 using (var connection = new SqliteConnection("Data Source=\"" + GetDatabasePath() + "\""))
                 {
                     tempList = connection.Query<DbModelOrder>(@"select * from orderpee,item,order_item where orderpee.ID=order_item.OrderID and item.ID=order_item.ItemID");
+                    //tempListLazada = connection.Query<DbModelOrder>(@"select * from orderpee,item,order_item where orderpee.ID=order_item.OrderID and item.ID=order_item.ItemID and orderpee.UserName LIKE ""%lazada%""");
                 }
                 oldLog.Debug("Query all data in: " + sw.ElapsedMilliseconds + " ms");
                 sw.Restart();
@@ -233,22 +223,54 @@ namespace BoughtItems.UI_Merge
                 }
                 else
                 {
-                    var arrOrder = tempList.ToArray();
-                    Array.Sort(arrOrder, (x, y) =>
+                    var listOrder = tempList.ToList();
+                    const string LAZADA_NAME = "lazada";
+                    //Lazada order ID is number only
+                    //Regex regexLazadaOrder = new Regex(@"ORDERLOGIC_(\d+)", RegexOptions.IgnoreCase);
+                    listOrder.Sort((x, y) =>
                     {
-                        if (y.OrderID == x.OrderID)
+                        _ = long.TryParse(x.OrderID, out long id1);
+                        _ = long.TryParse(y.OrderID, out long id2);
+                        if (x.UserName.Equals(LAZADA_NAME) && y.UserName.Equals(LAZADA_NAME))
                         {
-                            if (x.Name.Equals(y.Name))
+                            //both lazada -> increase
+                            if (id1 == id2)
                             {
-                                return x.Detail.CompareTo(y.Detail);
+                                if (x.Name.Equals(y.Name))
+                                {
+                                    return x.Detail.CompareTo(y.Detail);
+                                }
+                                return x.Name.CompareTo(y.Name);
                             }
-                            return x.Name.CompareTo(y.Name);
+                            return id1.CompareTo(id2);
                         }
-                        return y.OrderID.CompareTo(x.OrderID);
+                        else if (x.UserName.Equals(LAZADA_NAME))
+                        {
+                            //lazada will go to bottom
+                            return 1;
+                        }
+                        else if (y.UserName.Equals(LAZADA_NAME))
+                        {
+                            //shopee go up
+                            return -1;
+                        }
+                        else
+                        {
+                            //shopee decreasing
+                            if (id1 == id2)
+                            {
+                                if (x.Name.Equals(y.Name))
+                                {
+                                    return x.Detail.CompareTo(y.Detail);
+                                }
+                                return x.Name.CompareTo(y.Name);
+                            }
+                            return id2.CompareTo(id1);
+                        }
                     });
                     string offlineHTMLName = name.Replace(".html", "_offline.html");
-                    CreateHTML(arrOrder, name, false);
-                    CreateHTML(arrOrder, offlineHTMLName, true);
+                    CreateHTML(listOrder, name, false);
+                    CreateHTML(listOrder, offlineHTMLName, true);
 
                     //export to excel
                     List<string> listExcelText = new List<string>();
@@ -256,7 +278,7 @@ namespace BoughtItems.UI_Merge
                     //remove count column in _offline file
                     listExcelText.Add(string.Join(TAB, "Item", "Quantity", "Actual Price", "Total Price", "Order", "Shop", "User"));
                     int count = 0;
-                    foreach (var item in arrOrder)
+                    foreach (var item in listOrder)
                     {
                         ++count;
                         //remove count column in _offline file
@@ -272,7 +294,7 @@ namespace BoughtItems.UI_Merge
             IsTaskIdle = true;
         }
 
-        private static void CreateHTML(DbModelOrder[] arrOrder, string outputFile, bool includeLocalImage)
+        private static void CreateHTML(List<DbModelOrder> arrOrder, string outputFile, bool includeLocalImage)
         {
             StringWriter stringWriter = new StringWriter();
             const int IMAGE_SIZE = 150;
@@ -561,8 +583,7 @@ namespace BoughtItems.UI_Merge
                                     {
                                         item.ImageURL = item.ImageURL.Remove(item.ImageURL.IndexOf(")"));
                                     }
-                                    string imageName = item.ImageURL.Substring(item.ImageURL.LastIndexOf("/") + 1) + ".jpg";
-                                    var data = HttpSingleton.GetByteArrayAsync(item.ImageURL).Result;
+                                    var data = HttpSingleton.Client.GetByteArrayAsync(item.ImageURL).Result;
                                     if (data.Length > 0)
                                     {
                                         item.LocalImageName = Convert.ToBase64String(data);
@@ -590,7 +611,7 @@ namespace BoughtItems.UI_Merge
             return ret;
         }
 
-        private void InsertOrderInfoToDatabase(IEnumerable<OrderInfo> list)
+        public static void InsertOrderInfoToDatabase(IEnumerable<OrderInfo> list, bool ignoreErrorMessageBox)
         {
             Stopwatch sw = Stopwatch.StartNew();
             oldLog.Debug("Begin insert " + list.Count() + " order to database...");
@@ -603,7 +624,10 @@ namespace BoughtItems.UI_Merge
             {
                 string mess = "Found " + errorOrder + " order error and " + errorItem + " item error. Still continue.";
                 oldLog.Error(mess);
-                _ = MessageBox.Show(mess, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                if (!ignoreErrorMessageBox)
+                {
+                    _ = MessageBox.Show(mess, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
             }
             using (var connection = new SqliteConnection("Data Source=\"" + GetDatabasePath() + "\""))
             {
@@ -614,6 +638,10 @@ namespace BoughtItems.UI_Merge
                     if (order.IsValid)
                     {
                         orderRow += connection.Execute(@"INSERT OR IGNORE INTO orderpee (ID,URL,TotalPrice,UserName,ShopName,ShopURL) VALUES (@ID,@URL,@TotalPrice,@UserName,@ShopName,@ShopURL)", new { order.ID, URL = order.OrderURL, TotalPrice = (int)order.TotalPrice, order.UserName, order.ShopName, order.ShopURL });
+                    }
+                    else
+                    {
+                        oldLog.Error("Order is invalid: " + order.ToString());
                     }
                     foreach (var item in order.ListItems)
                     {
@@ -629,8 +657,15 @@ namespace BoughtItems.UI_Merge
                 {
                     foreach (var item in order.ListItems)
                     {
-                        int ItemID = connection.QuerySingle<int>(@"SELECT ID FROM item WHERE Name=@ItemName AND Detail=@ItemDetails AND ImageURL=@ImageURL", new { item.ItemName, item.ItemDetails, item.ImageURL });
-                        orderItemRow += connection.Execute(@"INSERT OR IGNORE INTO order_item (OrderID,ItemID,ActualPrice,OriginalPrice,Quantity) VALUES (@OrderID,@ItemID,@ActualPrice,@OriginalPrice,@NumberOfItem)", new { OrderID = order.ID, ItemID, item.ActualPrice, item.OriginalPrice, item.NumberOfItem });
+                        int ItemID = connection.QuerySingleOrDefault<int>(@"SELECT ID FROM item WHERE Name=@ItemName AND Detail=@ItemDetails AND ImageURL=@ImageURL", new { item.ItemName, item.ItemDetails, item.ImageURL });
+                        if (ItemID > 0)
+                        {
+                            orderItemRow += connection.Execute(@"INSERT OR IGNORE INTO order_item (OrderID,ItemID,ActualPrice,OriginalPrice,Quantity) VALUES (@OrderID,@ItemID,@ActualPrice,@OriginalPrice,@NumberOfItem)", new { OrderID = order.ID, ItemID, item.ActualPrice, item.OriginalPrice, item.NumberOfItem });
+                        }
+                        else
+                        {
+                            oldLog.Error("Cannot find ItemID in database: " + item.ItemName + " " + item.ItemDetails ?? "No detail");
+                        }
                     }
                 }
                 transaction.Commit();

@@ -44,11 +44,6 @@ namespace BoughtItems.UI_Lazada
             }
         }
 
-        private void BtnLazada_Click(object sender, RoutedEventArgs e)
-        {
-            _context?.ButtonLazada();
-        }
-
         private async void MainWebView_Initialized(object sender, EventArgs e)
         {
             log.Debug("Main is initalized");

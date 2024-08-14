@@ -21,8 +21,6 @@ namespace BoughtItems.UI_Merge
 
         public string UserName = string.Empty;
         public string ShopName = string.Empty;
-        public string ShopImageURL = string.Empty;
-        public string ShopLocalImageName = string.Empty;
         public string ShopURL = string.Empty;
 
         public List<ItemInfo> ListItems = new List<ItemInfo>(10);

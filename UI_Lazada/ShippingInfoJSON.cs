@@ -46,7 +46,7 @@ namespace BoughtItems.UI_Lazada.Shipping
         public List<Summary> summaries { get; set; }
     }
 
-    public class Root
+    public class ShippingInfoRoot
     {
         public string id { get; set; }
         public string tag { get; set; }

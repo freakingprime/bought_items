@@ -1,6 +1,7 @@
 ﻿using BoughtItems.MVVMBase;
 using BoughtItems.UI_Lazada.DetailInfo;
 using BoughtItems.UI_Lazada.Shipping;
+using BoughtItems.UI_Lazada.ShopInfo;
 using BoughtItems.UI_Merge;
 using Dapper;
 using Microsoft.Data.Sqlite;
@@ -12,6 +13,8 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Net.Quic;
+using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -28,10 +31,6 @@ namespace BoughtItems.UI_Lazada
         private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType.Name);
         private static readonly LogController oldLog = LogController.Instance;
         public LazadaVm()
-        {
-
-        }
-        public void ButtonLazada()
         {
 
         }
@@ -117,6 +116,24 @@ namespace BoughtItems.UI_Lazada
             return @"https://my.lazada.vn/customer/order/view/?shopGroupKey=" + group + "&tradeOrderId=" + order + "&spm=a2o42.order_list.list_manage.1";
         }
 
+        private static long GetNumberFromString(string s)
+        {
+            string temp = "0";
+            foreach (char c in s)
+            {
+                if (c >= '0' && c <= '9')
+                {
+                    temp += c;
+                }
+                else if (c == ' ')
+                {
+                    break;
+                }
+            }
+            _ = long.TryParse(temp, out long ret);
+            return ret;
+        }
+
         public async void ButtonFetchOrderInfo()
         {
             cts = new CancellationTokenSource();
@@ -180,7 +197,6 @@ namespace BoughtItems.UI_Lazada
             });
             oldLog.SetValueProgress(0);
             oldLog.Debug("Fetch completed");
-            //ParseLazadaInfo();
         }
 
         private string ExtractJsonKey(string json, string strRegex)
@@ -218,30 +234,87 @@ namespace BoughtItems.UI_Lazada
             return ret;
         }
 
-        private async void ParseLazadaInfo()
+        private class DbModelItem
+        {
+            public string Name;
+            public string Detail;
+            public string ImageURL;
+        }
+
+        private void ParseLazadaInfo()
         {
             oldLog.Debug("Begin parse Lazada info...");
             Regex regexRemoveBizParams = new Regex(@"""bizParams""\s*?:[^,]+,");
+            List<UI_Merge.OrderInfo> listOrder = new List<UI_Merge.OrderInfo>();
             using (var connection = new SqliteConnection("Data Source=\"" + MergeVm.GetDatabasePath() + "\""))
             {
-                var listPair = await connection.QueryAsync(@"select * from lazada_json where JsonData LIKE ""%tradeOrder%""");
+                var listPair = connection.Query(@"select * from lazada_json where JsonData LIKE ""%tradeOrder%""");
+                List<DbModelItem> listItemNoImageData = connection.Query<DbModelItem>(@"SELECT Name,Detail,ImageURL FROM item WHERE ImageData IS NOT NULL").ToList();
                 oldLog.Debug("Number of JSON: " + listPair.Count());
+                if (cts.Token.IsCancellationRequested)
+                {
+                    oldLog.Debug("Task is cancelled");
+                    return;
+                }
+                int count = 0;
+                int size = listPair.Count();
                 foreach (var item in listPair)
                 {
+                    if (cts.Token.IsCancellationRequested)
+                    {
+                        oldLog.Debug("Task is cancelled");
+                        return;
+                    }
+                    ++count;
+                    oldLog.SetValueProgress(count * 100 / size, "Parsing: " + count + "/" + size);
                     string shopGroupKey = item.ShopGroupKey;
                     string tradeOrderId = item.TradeOrderID;
                     string json = item.JsonData;
                     json = regexRemoveBizParams.Replace(json, "");
                     string sectionPackageShipping = ExtractJsonKey(json, @"""packageShippingInfo[^""]+""\s*:\s*{");
                     string sectionDetail = ExtractJsonKey(json, @"""detailInfo[^""]+""\s*:\s*{");
-                    if (sectionDetail.Length > 0 && sectionPackageShipping.Length > 0)
+                    string sectionShop = ExtractJsonKey(json, @"""orderShop[^""]+""\s*:\s*{");
+                    if (sectionDetail.Length > 0 && sectionPackageShipping.Length > 0 && sectionShop.Length > 0)
                     {
                         try
                         {
-                            ShippingInfoJSON shipping = JsonConvert.DeserializeObject<ShippingInfoJSON>(sectionPackageShipping);
-                            DetailInfoJSON detail = JsonConvert.DeserializeObject<DetailInfoJSON>(sectionDetail);
-                            //oldLog.Debug("Get correct JSON: " + shopGroupKey);
-
+                            ShippingInfoRoot shipping = JsonConvert.DeserializeObject<ShippingInfoRoot>(sectionPackageShipping);
+                            DetailInfoRoot detail = JsonConvert.DeserializeObject<DetailInfoRoot>(sectionDetail);
+                            ShopInfoRoot shop = JsonConvert.DeserializeObject<ShopInfoRoot>(sectionShop);
+                            log.Debug("Get correct JSON: " + shopGroupKey);
+                            UI_Merge.OrderInfo order = new UI_Merge.OrderInfo();
+                            order.TotalPrice = GetNumberFromString(detail.fields.total);
+                            order.ID = tradeOrderId; //use number only
+                            order.OrderURL = GetUrl(shopGroupKey, tradeOrderId);
+                            order.UserName = "lazada";
+                            order.ShopName = shop.fields.name ?? "";
+                            order.ShopURL = shop.fields.link ?? "";
+                            if (order.ShopURL.StartsWith("//"))
+                            {
+                                order.ShopURL = "https://" + order.ShopURL.Substring(2);
+                            }
+                            foreach (var singleItem in detail.fields.extraParam.orderSnapshot.summaries)
+                            {
+                                ItemInfo info = new ItemInfo();
+                                info.ItemName = singleItem.itemTitle ?? "";
+                                info.ItemDetails = singleItem.skuInfo ?? "";
+                                info.OriginalPrice = GetNumberFromString(singleItem.itemPrice);
+                                info.ActualPrice = info.OriginalPrice;
+                                info.NumberOfItem = singleItem.quantity;
+                                info.ImageURL = singleItem.picUrl ?? "";
+                                int countNoImageData = listItemNoImageData.Count(i => i.Name.Equals(info.ItemName) && i.Detail.Equals(info.ItemDetails) && i.ImageURL.Equals(info.ImageURL));
+                                if (countNoImageData == 0 && info.ImageURL.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    var data = HttpSingleton.Client.GetByteArrayAsync(new Uri(info.ImageURL)).Result;
+                                    Thread.Sleep(200);
+                                    if (data.Length > 0)
+                                    {
+                                        info.LocalImageName = Convert.ToBase64String(data);
+                                    }
+                                }
+                                order.ListItems.Add(info);
+                            }
+                            listOrder.Add(order);
                         }
                         catch (Exception ex)
                         {
@@ -250,17 +323,23 @@ namespace BoughtItems.UI_Lazada
                     }
                     else
                     {
-                        oldLog.Debug("Not a completed order: " + GetUrl(shopGroupKey, tradeOrderId));
+                        log.Debug("Not a completed order: " + GetUrl(shopGroupKey, tradeOrderId));
                     }
                 }
             }
+            oldLog.Debug("Number of order: " + listOrder.Count);
+            MergeVm.InsertOrderInfoToDatabase(listOrder, true);
             oldLog.SetValueProgress(0);
             oldLog.Debug("Parse finished");
         }
 
-        public void InsertToDatabase()
+        public async void InsertToDatabase()
         {
-            ParseLazadaInfo();
+            cts = new CancellationTokenSource();
+            await Task.Run(() =>
+            {
+                ParseLazadaInfo();
+            });
         }
 
         internal void ButtonStop()
