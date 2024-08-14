@@ -65,7 +65,6 @@ namespace BoughtItems.UI_Lazada.DetailInfo
         public object selectPackage { get; set; }
         public string bizParams { get; set; }
         public string sellerId { get; set; }
-        public object returnOld { get; set; }
         public object showDialog { get; set; }
         public object sortFirst { get; set; }
         public object action { get; set; }

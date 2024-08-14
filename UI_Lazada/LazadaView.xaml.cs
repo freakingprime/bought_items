@@ -135,9 +135,14 @@ namespace BoughtItems.UI_Lazada
             _context?.ButtonFetchOrderInfo();
         }
 
-        private void BtnImportFromFile_Click(object sender, RoutedEventArgs e)
+        private void BtnInsertToDatabase_Click(object sender, RoutedEventArgs e)
         {
-            _context?.ButtonImportFromFile();
+            _context?.InsertToDatabase();
+        }
+
+        private void BtnStop_Click(object sender, RoutedEventArgs e)
+        {
+            _context?.ButtonStop();
         }
     }
 }

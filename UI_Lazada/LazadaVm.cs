@@ -1,8 +1,11 @@
 ﻿using BoughtItems.MVVMBase;
+using BoughtItems.UI_Lazada.DetailInfo;
+using BoughtItems.UI_Lazada.Shipping;
 using BoughtItems.UI_Merge;
 using Dapper;
 using Microsoft.Data.Sqlite;
 using Microsoft.VisualBasic;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -11,9 +14,11 @@ using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Controls;
 using System.Windows.Documents;
+using System.Windows.Input;
 using System.Windows.Media.Animation;
 
 namespace BoughtItems.UI_Lazada
@@ -35,23 +40,8 @@ namespace BoughtItems.UI_Lazada
         private Regex regexField = new Regex(@"""fields"".+?},", RegexOptions.Singleline | RegexOptions.IgnoreCase);
         private Regex regexShopGroupKey = new Regex(@"""shopGroupKey""[^""]+""([^""]+)", RegexOptions.Singleline | RegexOptions.IgnoreCase);
         private Regex regexTradeOrderId = new Regex(@"ORDERLOGIC_(\d+)", RegexOptions.IgnoreCase);
-        private const string ORDER_DATA_PATH = @"D:\DOWNLOADED\lazada\order_data.txt";
         private const string ORDER_URL_PATH = @"D:\DOWNLOADED\lazada\order_url.txt";
-
-        private Dictionary<string, string> ReadFromFile(string path)
-        {
-            Dictionary<string, string> ret = new Dictionary<string, string>();
-            string[] lines = File.ReadAllLines(path);
-            foreach (string line in lines)
-            {
-                string[] split = line.Split("|", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-                if (split.Length == 2)
-                {
-                    ret[split[0]] = split[1];
-                }
-            }
-            return ret;
-        }
+        private CancellationTokenSource cts;
 
         private void WriteKeyToDB(Dictionary<string, string> dict)
         {
@@ -112,9 +102,8 @@ namespace BoughtItems.UI_Lazada
             if (response.IsSuccessStatusCode)
             {
                 result = await response.Content.ReadAsStringAsync();
-                result = Regex.Unescape(result);
-                File.WriteAllText(Path.Combine(@"D:\DOWNLOADED\lazada", "laz_order_" + (id++) + ".txt"), result);
-                WriteJSONToDB(groupKey, tradeOrderId, result);
+                //keep as it is
+                //result = Regex.Unescape(result);
             }
             else
             {
@@ -123,9 +112,30 @@ namespace BoughtItems.UI_Lazada
             return result;
         }
 
+        private string GetUrl(string group, string order)
+        {
+            return @"https://my.lazada.vn/customer/order/view/?shopGroupKey=" + group + "&tradeOrderId=" + order + "&spm=a2o42.order_list.list_manage.1";
+        }
+
         public async void ButtonFetchOrderInfo()
         {
-            var listOrder = ReadFromFile(ORDER_DATA_PATH).ToList();
+            cts = new CancellationTokenSource();
+            List<KeyValuePair<string, string>> listOrder = new List<KeyValuePair<string, string>>();
+            oldLog.Debug("Read order list from database...");
+            using (var connection = new SqliteConnection("Data Source=\"" + MergeVm.GetDatabasePath() + "\""))
+            {
+                var listPair = await connection.QueryAsync(@"select ShopGroupKey,TradeOrderID from lazada_json where JsonData IS NULL OR JsonData NOT LIKE ""%tradeOrder%""");
+                if (cts.Token.IsCancellationRequested)
+                {
+                    oldLog.Debug("Task is cancelled");
+                    return;
+                }
+                //var listPair = await connection.QueryAsync(@"select ShopGroupKey,TradeOrderID from lazada_json");
+                foreach (var item in listPair)
+                {
+                    listOrder.Add(new KeyValuePair<string, string>(item.ShopGroupKey, item.TradeOrderID));
+                }
+            }
             listOrder.Sort((x, y) =>
             {
                 if (y.Key.Equals(x.Key))
@@ -134,27 +144,131 @@ namespace BoughtItems.UI_Lazada
                 }
                 return y.Key.CompareTo(x.Key);
             });
-            oldLog.Debug("Number of order: " + listOrder.Count);
-            File.WriteAllText(ORDER_URL_PATH, string.Join(Environment.NewLine, listOrder.Select(i => @"https://my.lazada.vn/customer/order/view/?shopGroupKey=" + i.Key + "&tradeOrderId=" + i.Value + "&spm=a2o42.order_list.list_manage.1")));
-            await Task.Run(() =>
+            oldLog.Debug("Number of order to fetch: " + listOrder.Count);
+            try
+            {
+                File.WriteAllText(ORDER_URL_PATH, string.Join(Environment.NewLine, listOrder.Select(i => GetUrl(i.Key, i.Value))));
+            }
+            catch { }
+            await Task.Run(async () =>
             {
                 for (int i = 1, size = listOrder.Count; i <= size; ++i)
                 {
+                    if (cts.Token.IsCancellationRequested)
+                    {
+                        oldLog.Debug("Task is cancelled");
+                        return;
+                    }
                     var pair = listOrder[i - 1];
                     oldLog.SetValueProgress(i * 100 / size, "Fetch: " + i + "/" + size);
                     string json = MakeRequest(pair.Key, pair.Value).Result;
+                    await Task.Delay(200);
+                    if (json.Length > 0 && json.Contains("tradeOrderId", StringComparison.OrdinalIgnoreCase))
+                    {
+                        WriteJSONToDB(pair.Key, pair.Value, json);
+                    }
+                    else
+                    {
+                        oldLog.Error("Fail data: " + pair.Key + " " + pair.Value);
+                        try
+                        {
+                            File.WriteAllText(Path.Combine(@"D:\DOWNLOADED\lazada", "laz_order_fail_" + (id++) + ".txt"), json);
+                        }
+                        catch { }
+                    }
                 }
             });
+            oldLog.SetValueProgress(0);
+            oldLog.Debug("Fetch completed");
+            //ParseLazadaInfo();
         }
 
-        private const string ORDER_JSON_FOLDER = @"D:\DOWNLOADED\lazada";
-        public void ButtonImportFromFile()
+        private string ExtractJsonKey(string json, string strRegex)
         {
-            var files = Directory.GetFiles(ORDER_JSON_FOLDER, "laz_order_*");
-            foreach (var path in files)
+            string ret = "";
+            Regex regexKey = new Regex(strRegex, RegexOptions.IgnoreCase);
+            MatchCollection matches = regexKey.Matches(json);
+            if (matches.Count == 1)
             {
-                string json = File.ReadAllText(path);
-                break;
+                int indexKey = matches[0].Index;
+                if (indexKey >= 0)
+                {
+                    int indexFirstBrace = json.IndexOf('{', indexKey);
+                    if (indexFirstBrace >= 0)
+                    {
+                        int countBrace = 1;
+                        int cur = indexFirstBrace + 1;
+                        while (cur < json.Length && countBrace > 0)
+                        {
+                            switch (json[cur])
+                            {
+                                case '}':
+                                    --countBrace;
+                                    break;
+                                case '{':
+                                    ++countBrace;
+                                    break;
+                            }
+                            ++cur;
+                        }
+                        ret = json.Substring(indexFirstBrace, cur - indexFirstBrace);
+                    }
+                }
+            }
+            return ret;
+        }
+
+        private async void ParseLazadaInfo()
+        {
+            oldLog.Debug("Begin parse Lazada info...");
+            Regex regexRemoveBizParams = new Regex(@"""bizParams""\s*?:[^,]+,");
+            using (var connection = new SqliteConnection("Data Source=\"" + MergeVm.GetDatabasePath() + "\""))
+            {
+                var listPair = await connection.QueryAsync(@"select * from lazada_json where JsonData LIKE ""%tradeOrder%""");
+                oldLog.Debug("Number of JSON: " + listPair.Count());
+                foreach (var item in listPair)
+                {
+                    string shopGroupKey = item.ShopGroupKey;
+                    string tradeOrderId = item.TradeOrderID;
+                    string json = item.JsonData;
+                    json = regexRemoveBizParams.Replace(json, "");
+                    string sectionPackageShipping = ExtractJsonKey(json, @"""packageShippingInfo[^""]+""\s*:\s*{");
+                    string sectionDetail = ExtractJsonKey(json, @"""detailInfo[^""]+""\s*:\s*{");
+                    if (sectionDetail.Length > 0 && sectionPackageShipping.Length > 0)
+                    {
+                        try
+                        {
+                            ShippingInfoJSON shipping = JsonConvert.DeserializeObject<ShippingInfoJSON>(sectionPackageShipping);
+                            DetailInfoJSON detail = JsonConvert.DeserializeObject<DetailInfoJSON>(sectionDetail);
+                            //oldLog.Debug("Get correct JSON: " + shopGroupKey);
+
+                        }
+                        catch (Exception ex)
+                        {
+                            oldLog.Error("Cannot get package shipping section: " + shopGroupKey, ex);
+                        }
+                    }
+                    else
+                    {
+                        oldLog.Debug("Not a completed order: " + GetUrl(shopGroupKey, tradeOrderId));
+                    }
+                }
+            }
+            oldLog.SetValueProgress(0);
+            oldLog.Debug("Parse finished");
+        }
+
+        public void InsertToDatabase()
+        {
+            ParseLazadaInfo();
+        }
+
+        internal void ButtonStop()
+        {
+            if (cts != null)
+            {
+                cts.Cancel();
+                oldLog.Debug("Stop all tasks");
             }
         }
     }

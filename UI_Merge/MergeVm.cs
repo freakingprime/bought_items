@@ -376,7 +376,7 @@ namespace BoughtItems.UI_Merge
         private static List<OrderInfo> ImportJSONDatabase(string path)
         {
             List<OrderInfo> ret = new List<OrderInfo>();
-            HashSet<long> HashOrderID = new HashSet<long>();
+            HashSet<string> HashOrderID = new HashSet<string>();
             try
             {
                 List<OrderInfo> temp = JsonConvert.DeserializeObject<List<OrderInfo>>(File.ReadAllText(path));
@@ -451,8 +451,10 @@ namespace BoughtItems.UI_Merge
                 {
                     order.OrderURL = node.GetAttributeValue<string>("href", NONE_TEXT).Trim();
                     log.Info("Found order URL: " + order.OrderURL);
-                    if (long.TryParse(regexOrderID.Match(order.OrderURL).Groups[1].Value, out order.ID))
+                    Match matchOrderID = regexOrderID.Match(order.OrderURL);
+                    if (matchOrderID.Success)
                     {
+                        order.ID = matchOrderID.Groups[1].Value;
                         log.Info("Found order ID: " + order.ID);
                     }
                 }
@@ -479,14 +481,6 @@ namespace BoughtItems.UI_Merge
                 {
                     order.ShopURL = node.GetAttributeValue<string>("href", NONE_TEXT);
                     log.Info("Found shop URL: " + order.ShopURL);
-                    if (long.TryParse(regexShopID.Match(order.ShopURL).Groups[1].Value, out order.ShopID))
-                    {
-                        log.Info("Found shop ID: " + order.ShopID);
-                    }
-                    else
-                    {
-                        log.Info("Cannot find shop ID as a number: " + order.ShopURL);
-                    }
                 }
 
                 log.Info("Get item nodes");

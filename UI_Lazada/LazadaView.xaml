@@ -55,15 +55,18 @@
             <Button x:Name="BtnGoUserAgent"
                     Content="Open User Agent"
                     Click="BtnGoUserAgent_Click" />
+            <Button Name="BtnStop"
+                    Content="STOP"
+                    Click="BtnStop_Click" />
             <Button x:Name="BtnLazada"
                     Content="Get from Lazada"
                     Click="BtnLazada_Click" />
             <Button x:Name="BtnFetchOrder"
                     Content="Fetch Order"
                     Click="BtnFetchOrder_Click" />
-            <Button x:Name="BtnImportFromFile"
-                    Content="Import from file"
-                    Click="BtnImportFromFile_Click" />
+            <Button x:Name="BtnInsertToDatabase"
+                    Content="Insert to Database"
+                    Click="BtnInsertToDatabase_Click" />
         </WrapPanel>
     </StackPanel>
 </UserControl>
