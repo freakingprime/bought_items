@@ -5,7 +5,13 @@ using Microsoft.Data.Sqlite;
 using Microsoft.VisualBasic;
 using Microsoft.Win32;
 using Newtonsoft.Json;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats;
+using SixLabors.ImageSharp.Formats.Jpeg;
+using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing;
 using System;
+using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -357,7 +363,18 @@ namespace BoughtItems.UI_Merge
                     writer.WriteLine("<td>" + count + "</td>");
                     if (includeLocalImage)
                     {
-                        writer.WriteLine(string.Format("<td><img class=\"item_image\" src=\"data:image/jpeg;base64,{0}\"/></td>", item.ImageData));
+                        //2024.08.16: Resize image
+                        byte[] originalBytes = Convert.FromBase64String(item.ImageData);
+                        try
+                        {
+                            var photo = Image.Load(originalBytes);
+                            int width = photo.Width / 2;
+                            int height = photo.Height / 2;
+                            photo.Mutate(x => x.Resize(IMAGE_SIZE, IMAGE_SIZE));
+                            writer.WriteLine(string.Format("<td><img class=\"item_image\" src=\"data:image/jpeg;base64,{0}\"/></td>", photo.ToBase64String(JpegFormat.Instance)));
+                        }
+                        catch { }
+
                     }
                     else
                     {
