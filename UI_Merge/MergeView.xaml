@@ -87,8 +87,7 @@
                 <TextBox x:Name="TxtDatabaseFile"
                          Grid.Row="1"
                          Grid.Column="2"
-                         TextChanged="TxtDatabaseFile_TextChanged"
-                         Text="{Binding TxtDatabasePath,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" />
+                         TextChanged="TxtDatabaseFile_TextChanged" />
             </Grid>
         </GroupBox>
         <GroupBox Header="Control">
@@ -105,24 +104,39 @@
             <StackPanel Orientation="Vertical">
                 <StackPanel Orientation="Horizontal">
                     <CheckBox Content="Export to Summary.html"
+                              VerticalContentAlignment="Center"
                               IsChecked="{Binding IsExportDefaultFilename}" />
+                    <Label Content="Image Size" />
+                    <TextBox x:Name="TxtImageSize"
+                             TextChanged="TxtImageSize_TextChanged"
+                             Width="50" />
+                    <CheckBox Content="Force Compress"
+                              VerticalContentAlignment="Center"
+                              IsChecked="{Binding IsForceCompress}" />
+                    <Label Content="Recent Count" />
+                    <TextBox x:Name="TxtRecentCount"
+                             TextChanged="TxtRecentCount_TextChanged"
+                             Width="50" />
                 </StackPanel>
-
-                <StackPanel Orientation="Horizontal"
-                            IsEnabled="{Binding IsTaskIdle}">
+                <WrapPanel Orientation="Horizontal"
+                           IsEnabled="{Binding IsTaskIdle}">
                     <Button x:Name="BtnMerge"
                             Content="Merge from HTML"
                             Click="BtnMerge_Click" />
                     <Button x:Name="BtnExportToHTML"
                             Content="Export to HTML"
                             Click="BtnExportToHTML_Click" />
-                </StackPanel>
-                <StackPanel Orientation="Horizontal"
-                            Name="StackDebug">
-                    <Button x:Name="BtnInitDatabase"
-                            Content="Init Database"
-                            Click="BtnInitDatabase_Click" />
-                </StackPanel>
+                    <WrapPanel Orientation="Horizontal"
+                               Name="StackDebug"
+                               IsEnabled="False">
+                        <Button x:Name="BtnInitDatabase"
+                                Content="Init Database"
+                                Click="BtnInitDatabase_Click" />
+                    </WrapPanel>
+                    <Button x:Name="BtnCompressImage"
+                            Content="Compress Image"
+                            Click="BtnCompressImage_Click" />
+                </WrapPanel>
             </StackPanel>
         </GroupBox>
     </StackPanel>

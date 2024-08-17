@@ -15,15 +15,12 @@ namespace BoughtItems.UI_Merge
 
         #region Normal properties
 
-        public long ID = 0;
+        public string ID = "0";
         public string OrderURL = string.Empty;
         public long TotalPrice = 0;
 
         public string UserName = string.Empty;
-        public long ShopID = 0;
         public string ShopName = string.Empty;
-        public string ShopImageURL = string.Empty;
-        public string ShopLocalImageName = string.Empty;
         public string ShopURL = string.Empty;
 
         public List<ItemInfo> ListItems = new List<ItemInfo>(10);
@@ -33,7 +30,7 @@ namespace BoughtItems.UI_Merge
         {
             get
             {
-                return ID > 0 && OrderURL.Length > 0 && UserName.Length > 0 && ShopName.Length > 0 && ShopURL.Length > 0;
+                return ID.Length > 0 && OrderURL.Length > 0 && UserName.Length > 0 && ShopName.Length > 0 && ShopURL.Length > 0;
             }
         }
 

@@ -2,14 +2,24 @@
 using Dapper;
 using HtmlAgilityPack;
 using Microsoft.Data.Sqlite;
+using Microsoft.VisualBasic;
 using Microsoft.Win32;
 using Newtonsoft.Json;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats;
+using SixLabors.ImageSharp.Formats.Jpeg;
+using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing;
 using System;
+using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Data;
 using System.Data.SqlTypes;
 using System.Diagnostics;
+using System.DirectoryServices.ActiveDirectory;
+using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -22,6 +32,8 @@ using System.Threading.Tasks;
 using System.Web.UI;
 using System.Windows;
 using System.Windows.Media.Animation;
+using System.Windows.Shell;
+using System.Xml.Linq;
 
 namespace BoughtItems.UI_Merge
 {
@@ -34,6 +46,7 @@ namespace BoughtItems.UI_Merge
         {
             IsTaskIdle = true;
             IsExportDefaultFilename = true;
+            IsForceCompress = false;
         }
 
         #region Bind properties
@@ -46,28 +59,17 @@ namespace BoughtItems.UI_Merge
             set { SetValue(ref _isTaskIdle, value); }
         }
 
-        private string _txtDatabasePath;
-
-        public string TxtDatabasePath { get => _txtDatabasePath; set => SetValue(ref _txtDatabasePath, value); }
-
         private bool _isExportDefaultFilename;
 
         public bool IsExportDefaultFilename { get => _isExportDefaultFilename; set => SetValue(ref _isExportDefaultFilename, value); }
 
+        private bool _isForceCompress;
+
+        public bool IsForceCompress { get => _isForceCompress; set => SetValue(ref _isForceCompress, value); }
+
         #endregion
 
         #region Normal properties
-
-        private static HttpClient _httpSingleton;
-
-        public static HttpClient HttpSingleton
-        {
-            get
-            {
-                _httpSingleton ??= new HttpClient();
-                return _httpSingleton;
-            }
-        }
 
         private const string IMAGE_FOLDER_NAME = "images";
         private const string NONE_TEXT = "None";
@@ -165,7 +167,7 @@ namespace BoughtItems.UI_Merge
             oldLog.SetValueProgress(0);
             await Task.Run(() =>
             {
-                InsertOrderInfoToDatabase(bagOrder);
+                InsertOrderInfoToDatabase(bagOrder, false);
             });
             IsTaskIdle = true;
         }
@@ -227,6 +229,7 @@ namespace BoughtItems.UI_Merge
                 using (var connection = new SqliteConnection("Data Source=\"" + GetDatabasePath() + "\""))
                 {
                     tempList = connection.Query<DbModelOrder>(@"select * from orderpee,item,order_item where orderpee.ID=order_item.OrderID and item.ID=order_item.ItemID");
+                    //tempListLazada = connection.Query<DbModelOrder>(@"select * from orderpee,item,order_item where orderpee.ID=order_item.OrderID and item.ID=order_item.ItemID and orderpee.UserName LIKE ""%lazada%""");
                 }
                 oldLog.Debug("Query all data in: " + sw.ElapsedMilliseconds + " ms");
                 sw.Restart();
@@ -236,22 +239,63 @@ namespace BoughtItems.UI_Merge
                 }
                 else
                 {
-                    var arrOrder = tempList.ToArray();
-                    Array.Sort(arrOrder, (x, y) =>
+                    var listOrder = tempList.ToList();
+                    const string LAZADA_NAME = "lazada";
+                    //Lazada order ID is number only
+                    //Regex regexLazadaOrder = new Regex(@"ORDERLOGIC_(\d+)", RegexOptions.IgnoreCase);
+                    listOrder.Sort((x, y) =>
                     {
-                        if (y.OrderID == x.OrderID)
+                        _ = long.TryParse(x.OrderID, out long id1);
+                        _ = long.TryParse(y.OrderID, out long id2);
+                        if (x.UserName.Equals(LAZADA_NAME) && y.UserName.Equals(LAZADA_NAME))
                         {
-                            if (x.Name.Equals(y.Name))
+                            //both lazada -> increase
+                            if (id1 == id2)
                             {
-                                return x.Detail.CompareTo(y.Detail);
+                                if (x.Name.Equals(y.Name))
+                                {
+                                    return x.Detail.CompareTo(y.Detail);
+                                }
+                                return x.Name.CompareTo(y.Name);
                             }
-                            return x.Name.CompareTo(y.Name);
+                            return id1.CompareTo(id2);
                         }
-                        return y.OrderID.CompareTo(x.OrderID);
+                        else if (x.UserName.Equals(LAZADA_NAME))
+                        {
+                            //lazada will go to bottom
+                            return 1;
+                        }
+                        else if (y.UserName.Equals(LAZADA_NAME))
+                        {
+                            //shopee go up
+                            return -1;
+                        }
+                        else
+                        {
+                            //shopee decreasing
+                            if (id1 == id2)
+                            {
+                                if (x.Name.Equals(y.Name))
+                                {
+                                    return x.Detail.CompareTo(y.Detail);
+                                }
+                                return x.Name.CompareTo(y.Name);
+                            }
+                            return id2.CompareTo(id1);
+                        }
                     });
+
+                    //insert 15 recent lazada order to top
+                    int recentCount = Properties.Settings.Default.RecentCount;
+                    for (int i = 0; i < recentCount; ++i)
+                    {
+                        listOrder.Insert(recentCount, listOrder[listOrder.Count - recentCount + i]);
+                    }
+                    listOrder.RemoveRange(listOrder.Count - recentCount, recentCount);
+
                     string offlineHTMLName = name.Replace(".html", "_offline.html");
-                    CreateHTML(arrOrder, name, false);
-                    CreateHTML(arrOrder, offlineHTMLName, true);
+                    CreateHTML(listOrder, name, false);
+                    CreateHTML(listOrder, offlineHTMLName, true);
 
                     //export to excel
                     List<string> listExcelText = new List<string>();
@@ -259,7 +303,7 @@ namespace BoughtItems.UI_Merge
                     //remove count column in _offline file
                     listExcelText.Add(string.Join(TAB, "Item", "Quantity", "Actual Price", "Total Price", "Order", "Shop", "User"));
                     int count = 0;
-                    foreach (var item in arrOrder)
+                    foreach (var item in listOrder)
                     {
                         ++count;
                         //remove count column in _offline file
@@ -275,10 +319,9 @@ namespace BoughtItems.UI_Merge
             IsTaskIdle = true;
         }
 
-        private static void CreateHTML(DbModelOrder[] arrOrder, string outputFile, bool includeLocalImage)
+        private static void CreateHTML(List<DbModelOrder> arrOrder, string outputFile, bool includeLocalImage)
         {
             StringWriter stringWriter = new StringWriter();
-            const int IMAGE_SIZE = 150;
             int count = 0;
 
             using (HtmlTextWriter writer = new HtmlTextWriter(stringWriter))
@@ -292,7 +335,7 @@ namespace BoughtItems.UI_Merge
                 writer.RenderEndTag();
 
                 writer.RenderBeginTag(HtmlTextWriterTag.Style);
-                writer.WriteLine("img.item_image {width: " + IMAGE_SIZE + "px;height: " + IMAGE_SIZE + "px}");
+                writer.WriteLine("img.item_image {width: " + Properties.Settings.Default.ImageSize + "px;height: " + Properties.Settings.Default.ImageSize + "px}");
                 writer.WriteLine("table {border-collapse: collapse; table-layout: fixed}");
                 writer.WriteLine("th, td {border: 1px solid black; padding: 5px; word-break: break-all; word-wrap: break-word; white-space: normal}");
                 writer.RenderEndTag();
@@ -308,7 +351,7 @@ namespace BoughtItems.UI_Merge
 
                 writer.RenderBeginTag(HtmlTextWriterTag.Tr);
                 writer.WriteLine("<th width=\"40\">No</th>");
-                writer.WriteLine("<th width=\"150\">Image</th>");
+                writer.WriteLine("<th width=\"" + Properties.Settings.Default.ImageSize + "\">Image</th>");
                 writer.WriteLine("<th>Item (" + arrOrder.Count() + ") </th>");
 
                 long superTotalActualPrice = arrOrder.Sum(i => i.ActualPrice * i.Quantity);
@@ -338,7 +381,14 @@ namespace BoughtItems.UI_Merge
                     writer.WriteLine("<td>" + count + "</td>");
                     if (includeLocalImage)
                     {
-                        writer.WriteLine(string.Format("<td><img class=\"item_image\" src=\"data:image/jpeg;base64,{0}\"/></td>", item.ImageData));
+                        if (item.CompressImageData != null && item.CompressImageData.Length > 10)
+                        {
+                            writer.WriteLine(string.Format("<td><img class=\"item_image\" src=\"data:image/jpeg;base64,{0}\"/></td>", item.CompressImageData));
+                        }
+                        else
+                        {
+                            writer.WriteLine(string.Format("<td><img class=\"item_image\" src=\"data:image/jpeg;base64,{0}\"/></td>", item.ImageData));
+                        }
                     }
                     else
                     {
@@ -379,7 +429,7 @@ namespace BoughtItems.UI_Merge
         private static List<OrderInfo> ImportJSONDatabase(string path)
         {
             List<OrderInfo> ret = new List<OrderInfo>();
-            HashSet<long> HashOrderID = new HashSet<long>();
+            HashSet<string> HashOrderID = new HashSet<string>();
             try
             {
                 List<OrderInfo> temp = JsonConvert.DeserializeObject<List<OrderInfo>>(File.ReadAllText(path));
@@ -454,8 +504,10 @@ namespace BoughtItems.UI_Merge
                 {
                     order.OrderURL = node.GetAttributeValue<string>("href", NONE_TEXT).Trim();
                     log.Info("Found order URL: " + order.OrderURL);
-                    if (long.TryParse(regexOrderID.Match(order.OrderURL).Groups[1].Value, out order.ID))
+                    Match matchOrderID = regexOrderID.Match(order.OrderURL);
+                    if (matchOrderID.Success)
                     {
+                        order.ID = matchOrderID.Groups[1].Value;
                         log.Info("Found order ID: " + order.ID);
                     }
                 }
@@ -482,14 +534,6 @@ namespace BoughtItems.UI_Merge
                 {
                     order.ShopURL = node.GetAttributeValue<string>("href", NONE_TEXT);
                     log.Info("Found shop URL: " + order.ShopURL);
-                    if (long.TryParse(regexShopID.Match(order.ShopURL).Groups[1].Value, out order.ShopID))
-                    {
-                        log.Info("Found shop ID: " + order.ShopID);
-                    }
-                    else
-                    {
-                        log.Info("Cannot find shop ID as a number: " + order.ShopURL);
-                    }
                 }
 
                 log.Info("Get item nodes");
@@ -570,8 +614,7 @@ namespace BoughtItems.UI_Merge
                                     {
                                         item.ImageURL = item.ImageURL.Remove(item.ImageURL.IndexOf(")"));
                                     }
-                                    string imageName = item.ImageURL.Substring(item.ImageURL.LastIndexOf("/") + 1) + ".jpg";
-                                    var data = HttpSingleton.GetByteArrayAsync(item.ImageURL).Result;
+                                    var data = HttpSingleton.Client.GetByteArrayAsync(item.ImageURL).Result;
                                     if (data.Length > 0)
                                     {
                                         item.LocalImageName = Convert.ToBase64String(data);
@@ -599,7 +642,7 @@ namespace BoughtItems.UI_Merge
             return ret;
         }
 
-        private void InsertOrderInfoToDatabase(IEnumerable<OrderInfo> list)
+        public static void InsertOrderInfoToDatabase(IEnumerable<OrderInfo> list, bool ignoreErrorMessageBox)
         {
             Stopwatch sw = Stopwatch.StartNew();
             oldLog.Debug("Begin insert " + list.Count() + " order to database...");
@@ -612,7 +655,10 @@ namespace BoughtItems.UI_Merge
             {
                 string mess = "Found " + errorOrder + " order error and " + errorItem + " item error. Still continue.";
                 oldLog.Error(mess);
-                _ = MessageBox.Show(mess, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                if (!ignoreErrorMessageBox)
+                {
+                    _ = MessageBox.Show(mess, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
             }
             using (var connection = new SqliteConnection("Data Source=\"" + GetDatabasePath() + "\""))
             {
@@ -624,11 +670,21 @@ namespace BoughtItems.UI_Merge
                     {
                         orderRow += connection.Execute(@"INSERT OR IGNORE INTO orderpee (ID,URL,TotalPrice,UserName,ShopName,ShopURL) VALUES (@ID,@URL,@TotalPrice,@UserName,@ShopName,@ShopURL)", new { order.ID, URL = order.OrderURL, TotalPrice = (int)order.TotalPrice, order.UserName, order.ShopName, order.ShopURL });
                     }
+                    else
+                    {
+                        oldLog.Error("Order is invalid: " + order.ToString());
+                    }
                     foreach (var item in order.ListItems)
                     {
                         if (item.IsValid)
                         {
-                            itemRow += connection.Execute(@"INSERT OR IGNORE INTO item (Name,Detail,ImageURL,ImageData) VALUES (@ItemName,@ItemDetails,@ImageURL,@ImageData)", new { item.ItemName, item.ItemDetails, item.ImageURL, ImageData = item.LocalImageName });
+                            string compress = "";
+                            try
+                            {
+                                compress = GetCompressedBase64(item.LocalImageName, Properties.Settings.Default.ImageSize);
+                            }
+                            catch { }
+                            itemRow += connection.Execute(@"INSERT OR IGNORE INTO item (Name,Detail,ImageURL,ImageData,CompressImageData) VALUES (@ItemName,@ItemDetails,@ImageURL,@ImageData,@compress)", new { item.ItemName, item.ItemDetails, item.ImageURL, ImageData = item.LocalImageName, compress });
                         }
                     }
                 }
@@ -638,8 +694,15 @@ namespace BoughtItems.UI_Merge
                 {
                     foreach (var item in order.ListItems)
                     {
-                        int ItemID = connection.QuerySingle<int>(@"SELECT ID FROM item WHERE Name=@ItemName AND Detail=@ItemDetails AND ImageURL=@ImageURL", new { item.ItemName, item.ItemDetails, item.ImageURL });
-                        orderItemRow += connection.Execute(@"INSERT OR IGNORE INTO order_item (OrderID,ItemID,ActualPrice,OriginalPrice,Quantity) VALUES (@OrderID,@ItemID,@ActualPrice,@OriginalPrice,@NumberOfItem)", new { OrderID = order.ID, ItemID, item.ActualPrice, item.OriginalPrice, item.NumberOfItem });
+                        int ItemID = connection.QuerySingleOrDefault<int>(@"SELECT ID FROM item WHERE Name=@ItemName AND Detail=@ItemDetails AND ImageURL=@ImageURL", new { item.ItemName, item.ItemDetails, item.ImageURL });
+                        if (ItemID > 0)
+                        {
+                            orderItemRow += connection.Execute(@"INSERT OR IGNORE INTO order_item (OrderID,ItemID,ActualPrice,OriginalPrice,Quantity) VALUES (@OrderID,@ItemID,@ActualPrice,@OriginalPrice,@NumberOfItem)", new { OrderID = order.ID, ItemID, item.ActualPrice, item.OriginalPrice, item.NumberOfItem });
+                        }
+                        else
+                        {
+                            oldLog.Error("Cannot find ItemID in database: " + item.ItemName + " " + item.ItemDetails ?? "No detail");
+                        }
                     }
                 }
                 transaction.Commit();
@@ -687,7 +750,6 @@ namespace BoughtItems.UI_Merge
                     }
                 }
             }
-
             using (var connection = new SqliteConnection("Data Source=\"" + GetDatabasePath() + "\""))
             {
                 connection.Open();
@@ -723,7 +785,7 @@ namespace BoughtItems.UI_Merge
             oldLog.Debug("Insert " + orderRow + " order and " + itemRow + " item and " + orderItemRow + " connection to DB in: " + sw.ElapsedMilliseconds + " ms");
         }
 
-        private string GetDatabasePath()
+        public static string GetDatabasePath()
         {
             string targetPath = Properties.Settings.Default.DatabasePath;
             if (!File.Exists(targetPath))
@@ -750,8 +812,126 @@ namespace BoughtItems.UI_Merge
             {
                 targetPath = "";
             }
-            TxtDatabasePath = targetPath;
             return targetPath;
         }
+
+        public static string GetCompressedBase64(string originalBase64, int imageSize)
+        {
+            byte[] originalBytes = Convert.FromBase64String(originalBase64);
+            var photo = Image.Load(originalBytes);
+            photo.Mutate(x => x.Resize(imageSize, imageSize, KnownResamplers.Lanczos3));
+            using var ms = new MemoryStream();
+            photo.Save(ms, JpegFormat.Instance);
+            var outputBytes = ms.ToArray();
+            return Convert.ToBase64String(outputBytes);
+        }
+
+        public async void ButtonCompressImage()
+        {
+            List<DbModelItem> listCompress = new List<DbModelItem>();
+            Stopwatch sw = Stopwatch.StartNew();
+            using (var connection = new SqliteConnection("Data Source=\"" + GetDatabasePath() + "\""))
+            {
+                var temp = await connection.QueryAsync<DbModelItem>(@"select * from item");
+                if (temp != null)
+                {
+                    if (IsForceCompress)
+                    {
+                        listCompress = temp.ToList();
+                    }
+                    else
+                    {
+                        listCompress = temp.Where(i => i.CompressImageData == null || i.CompressImageData.Length < 10).ToList();
+                    }
+                }
+            }
+            oldLog.Debug("Query " + listCompress.Count + " items in " + sw.ElapsedMilliseconds + " ms");
+            sw.Restart();
+            List<DbModelItem> listChange = new List<DbModelItem>();
+            List<bool> listUpdateOriginalImageData = new List<bool>();
+            await Task.Run(() =>
+            {
+                int count = 0;
+                int size = listCompress.Count();
+                Parallel.ForEach(listCompress, new ParallelOptions { MaxDegreeOfParallelism = 10 }, (item) =>
+                {
+                    ++count;
+                    oldLog.SetValueProgress(count * 100 / size, "Compressing: " + count + "/" + size);
+                    string output = "";
+                    bool isUpdateOriginalImage = false;
+                    for (int i = 1; i <= 2; ++i)
+                    {
+                        try
+                        {
+                            output = GetCompressedBase64(item.ImageData, Properties.Settings.Default.ImageSize);
+                            break;
+                        }
+                        catch (Exception e1)
+                        {
+                            //cannot get base 64 string. Redownload the image. Try again.
+                            if (i == 1)
+                            {
+                                //first time. Redownload
+                                oldLog.Error("Cannot compress image in database. Try to redownload.", e1);
+                            }
+                            else
+                            {
+                                //last time
+                                oldLog.Error("Cannot get right image data: " + item.ImageURL, e1);
+                            }
+                            var data = HttpSingleton.Client.GetByteArrayAsync(item.ImageURL).Result;
+                            if (data.Length > 0)
+                            {
+                                item.ImageData = Convert.ToBase64String(data);
+                                isUpdateOriginalImage = true;
+                            }
+                            oldLog.Debug("Redownloaded image: " + item.ImageURL);
+                        }
+                    }
+                    if (output.Length > 10)
+                    {
+                        //can compress image
+                        item.CompressImageData = output;
+                        lock (listChange)
+                        {
+                            listChange.Add(item);
+                            listUpdateOriginalImageData.Add(isUpdateOriginalImage);
+                        }
+                    }
+                });
+            });
+            oldLog.Debug("Compress image in memory in " + sw.ElapsedMilliseconds + " ms");
+            sw.Restart();
+            //write compressed data to database
+            int rowChanged = 0;
+            await Task.Run(() =>
+            {
+                using (var connection = new SqliteConnection("Data Source=\"" + GetDatabasePath() + "\""))
+                {
+                    connection.Open();
+                    var transaction = connection.BeginTransaction();
+                    for (int i = 0, size = listChange.Count; i < size; ++i)
+                    {
+                        oldLog.SetValueProgress((i + 1) * 100 / size, "Writing to DB: " + (i + 1) + "/" + size);
+                        var item = listChange[i];
+                        if (listUpdateOriginalImageData[i])
+                        {
+                            //update both original and compressed data
+                            rowChanged += connection.Execute(@"UPDATE OR IGNORE item SET CompressImageData=@CompressImageData,ImageData=@ImageData WHERE item.ID=@ID", new { item.CompressImageData, item.ImageData, item.ID });
+                        }
+                        else
+                        {
+                            //update only compressed data
+                            rowChanged += connection.Execute(@"UPDATE OR IGNORE item SET CompressImageData=@CompressImageData WHERE item.ID=@ID", new { item.CompressImageData, item.ID });
+                        }
+                    }
+                    transaction.Commit();
+                }
+            });
+            oldLog.Debug("Write " + rowChanged + " rows to database in " + sw.ElapsedMilliseconds + " ms");
+            oldLog.SetValueProgress(0);
+            oldLog.Debug("Compression is completed.");
+        }
+
     }
 }

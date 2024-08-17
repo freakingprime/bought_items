@@ -6,16 +6,24 @@
         xmlns:local="clr-namespace:BoughtItems"
         xmlns:vm="clr-namespace:BoughtItems.UI_MainWindow"
         xmlns:merge="clr-namespace:BoughtItems.UI_Merge"
+        xmlns:lazada="clr-namespace:BoughtItems.UI_Lazada"
         mc:Ignorable="d"
         DataContextChanged="Window_DataContextChanged"
         Title="MainWindow"
-        Height="450"
+        Height="900"
         Width="800">
     <Window.DataContext>
         <vm:MainWindowVm />
     </Window.DataContext>
     <StackPanel>
-        <merge:MergeView />
+        <TabControl x:Name="TabMain">
+            <TabItem Header="Shopee">
+                <merge:MergeView />
+            </TabItem>
+            <TabItem Header="Lazada">
+                <lazada:LazadaView />
+            </TabItem>
+        </TabControl>
         <GroupBox Header="Log">
             <StackPanel Orientation="Vertical">
                 <StackPanel Orientation="Horizontal">

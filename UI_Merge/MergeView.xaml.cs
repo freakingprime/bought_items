@@ -40,17 +40,15 @@ namespace BoughtItems.UI_Merge
             }
             names = names.Trim();
             TxtHtmlFiles.Text = names;
-
             if (File.Exists(Properties.Settings.Default.DatabasePath))
             {
                 TxtDatabaseFile.Text = Properties.Settings.Default.DatabasePath;
             }
+            TxtImageSize.Text = Properties.Settings.Default.ImageSize + "";
+            TxtRecentCount.Text = Properties.Settings.Default.RecentCount + "";
             BtnAutoLoad_Click(null, null);
-
 #if DEBUG
             StackDebug.IsEnabled = true;
-#else
-            StackDebug.IsEnabled = false;
 #endif
         }
 
@@ -172,6 +170,32 @@ namespace BoughtItems.UI_Merge
         private void BtnInitDatabase_Click(object sender, RoutedEventArgs e)
         {
             context?.ButtonInitDatabase();
+        }
+
+        private void BtnCompressImage_Click(object sender, RoutedEventArgs e)
+        {
+            if (MessageBox.Show("Do you want to compress all images in database?", "Confirm", MessageBoxButton.OKCancel, MessageBoxImage.Question, MessageBoxResult.Cancel) == MessageBoxResult.OK)
+            {
+                context?.ButtonCompressImage();
+            }
+        }
+
+        private void TxtImageSize_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (int.TryParse(((TextBox)sender).Text, out int val))
+            {
+                Properties.Settings.Default.ImageSize = val;
+                Properties.Settings.Default.Save();
+            }
+        }
+
+        private void TxtRecentCount_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (int.TryParse(((TextBox)sender).Text, out int val))
+            {
+                Properties.Settings.Default.RecentCount = val;
+                Properties.Settings.Default.Save();
+            }
         }
     }
 }
