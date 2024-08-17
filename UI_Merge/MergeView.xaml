@@ -104,7 +104,19 @@
             <StackPanel Orientation="Vertical">
                 <StackPanel Orientation="Horizontal">
                     <CheckBox Content="Export to Summary.html"
+                              VerticalContentAlignment="Center"
                               IsChecked="{Binding IsExportDefaultFilename}" />
+                    <Label Content="Image Size" />
+                    <TextBox x:Name="TxtImageSize"
+                             TextChanged="TxtImageSize_TextChanged"
+                             Width="50" />
+                    <CheckBox Content="Force Compress"
+                              VerticalContentAlignment="Center"
+                              IsChecked="{Binding IsForceCompress}" />
+                    <Label Content="Recent Count" />
+                    <TextBox x:Name="TxtRecentCount"
+                             TextChanged="TxtRecentCount_TextChanged"
+                             Width="50" />
                 </StackPanel>
                 <WrapPanel Orientation="Horizontal"
                            IsEnabled="{Binding IsTaskIdle}">
@@ -115,12 +127,15 @@
                             Content="Export to HTML"
                             Click="BtnExportToHTML_Click" />
                     <WrapPanel Orientation="Horizontal"
-                               Name="StackDebug">
+                               Name="StackDebug"
+                               IsEnabled="False">
                         <Button x:Name="BtnInitDatabase"
                                 Content="Init Database"
                                 Click="BtnInitDatabase_Click" />
-
                     </WrapPanel>
+                    <Button x:Name="BtnCompressImage"
+                            Content="Compress Image"
+                            Click="BtnCompressImage_Click" />
                 </WrapPanel>
             </StackPanel>
         </GroupBox>

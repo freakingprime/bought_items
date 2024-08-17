@@ -33,7 +33,7 @@ namespace BoughtItems
             oldLog.SetProgressBar(TheProgresBar);
             oldLog.SetLabelPercentage(TxtProgress);
 #if DEBUG
-            TabMain.SelectedIndex = 1;
+            //TabMain.SelectedIndex = 1;
 #endif
         }
 

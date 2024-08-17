@@ -106,5 +106,29 @@ namespace BoughtItems.Properties {
                 this["UserAgent"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("0")]
+        public int ImageSize {
+            get {
+                return ((int)(this["ImageSize"]));
+            }
+            set {
+                this["ImageSize"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("0")]
+        public int RecentCount {
+            get {
+                return ((int)(this["RecentCount"]));
+            }
+            set {
+                this["RecentCount"] = value;
+            }
+        }
     }
 }

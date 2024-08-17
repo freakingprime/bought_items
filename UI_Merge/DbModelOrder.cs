@@ -19,6 +19,7 @@ namespace BoughtItems.UI_Merge
         public string Detail;
         public string ImageURL;
         public string ImageData;
+        public string CompressImageData;
         public long ActualPrice;
         public long OriginalPrice;
         public int Quantity;
