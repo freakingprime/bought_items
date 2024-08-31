@@ -510,6 +510,15 @@ namespace BoughtItems.UI_Merge
                         order.ID = matchOrderID.Groups[1].Value;
                         log.Info("Found order ID: " + order.ID);
                     }
+                    else
+                    {
+                        oldLog.Error("Cannot find order ID from URL: " + order.OrderURL);
+                    }
+                }
+                else
+                {
+                    oldLog.Error("Cannot find order DIV");
+                    continue;
                 }
 
                 log.Info("Find order total price");
@@ -669,28 +678,28 @@ namespace BoughtItems.UI_Merge
                     if (order.IsValid)
                     {
                         orderRow += connection.Execute(@"INSERT OR IGNORE INTO orderpee (ID,URL,TotalPrice,UserName,ShopName,ShopURL) VALUES (@ID,@URL,@TotalPrice,@UserName,@ShopName,@ShopURL)", new { order.ID, URL = order.OrderURL, TotalPrice = (int)order.TotalPrice, order.UserName, order.ShopName, order.ShopURL });
+                        foreach (var item in order.ListItems)
+                        {
+                            if (item.IsValid)
+                            {
+                                string compress = "";
+                                try
+                                {
+                                    compress = GetCompressedBase64(item.LocalImageName, Properties.Settings.Default.ImageSize);
+                                }
+                                catch { }
+                                itemRow += connection.Execute(@"INSERT OR IGNORE INTO item (Name,Detail,ImageURL,ImageData,CompressImageData) VALUES (@ItemName,@ItemDetails,@ImageURL,@ImageData,@compress)", new { item.ItemName, item.ItemDetails, item.ImageURL, ImageData = item.LocalImageName, compress });
+                            }
+                        }
                     }
                     else
                     {
                         oldLog.Error("Order is invalid: " + order.ToString());
                     }
-                    foreach (var item in order.ListItems)
-                    {
-                        if (item.IsValid)
-                        {
-                            string compress = "";
-                            try
-                            {
-                                compress = GetCompressedBase64(item.LocalImageName, Properties.Settings.Default.ImageSize);
-                            }
-                            catch { }
-                            itemRow += connection.Execute(@"INSERT OR IGNORE INTO item (Name,Detail,ImageURL,ImageData,CompressImageData) VALUES (@ItemName,@ItemDetails,@ImageURL,@ImageData,@compress)", new { item.ItemName, item.ItemDetails, item.ImageURL, ImageData = item.LocalImageName, compress });
-                        }
-                    }
                 }
                 transaction.Commit();
                 transaction = connection.BeginTransaction();
-                foreach (var order in list)
+                foreach (var order in list.Where(i => i.IsValid))
                 {
                     foreach (var item in order.ListItems)
                     {
