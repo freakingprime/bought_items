@@ -132,7 +132,7 @@ namespace BoughtItems.UI_Lazada
 
         private void BtnInsertToDatabase_Click(object sender, RoutedEventArgs e)
         {
-            _context?.InsertToDatabase();
+            _context?.ButtonInsertToDatabase();
         }
 
         private void BtnStop_Click(object sender, RoutedEventArgs e)

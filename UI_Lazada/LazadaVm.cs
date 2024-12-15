@@ -127,7 +127,7 @@ namespace BoughtItems.UI_Lazada
                 }
                 else if (c == ' ')
                 {
-                    break;
+                    //break;
                 }
             }
             _ = long.TryParse(temp, out long ret);
@@ -333,7 +333,7 @@ namespace BoughtItems.UI_Lazada
             oldLog.Debug("Parse finished");
         }
 
-        public async void InsertToDatabase()
+        public async void ButtonInsertToDatabase()
         {
             cts = new CancellationTokenSource();
             await Task.Run(() =>
