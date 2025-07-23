@@ -61,7 +61,7 @@ namespace BoughtItems.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to 240728 
+        ///   Looks up a localized string similar to 250723 
         ///.
         /// </summary>
         public static string BuildTime {
